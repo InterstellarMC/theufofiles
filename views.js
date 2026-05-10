@@ -608,39 +608,59 @@ Views.uphotos = {
 };
 
 /* ============== UEarth (clustered atlas + time slider + agency colors) ============== */
+/* ============== UEarth · 3D globe (globe.gl / three.js) ============== */
+const LAUNCH_SITES = {
+  'Kennedy Space Center, FL': { lat: 28.573, lng: -80.649, label: 'Kennedy Space Center · Florida' },
+  'Cape Canaveral, FL':       { lat: 28.488, lng: -80.577, label: 'Cape Canaveral · Florida' },
+  'Houston, TX':              { lat: 29.560, lng: -95.094, label: 'Johnson Space Center · Houston' },
+  'Baikonur, Kazakhstan':     { lat: 45.965, lng: 63.305,  label: 'Baikonur Cosmodrome' }
+};
+function pickLaunchSite(r) {
+  const t = ((r.title||'') + ' ' + (r.description||'') + ' ' + (r.incident_location||'')).toLowerCase();
+  if (/baikonur|soyuz|salyut/.test(t)) return LAUNCH_SITES['Baikonur, Kazakhstan'];
+  if (/houston|johnson|mission control/.test(t)) return LAUNCH_SITES['Houston, TX'];
+  if (/apollo|gemini|skylab|saturn|ksc|kennedy/.test(t)) return LAUNCH_SITES['Kennedy Space Center, FL'];
+  return LAUNCH_SITES['Cape Canaveral, FL'];
+}
+
 Views.uearth = {
-  map: null,
-  cluster: null,
-  heat: null,
-  layerMode: 'cluster',   // 'cluster' | 'heat'
+  globe: null,
+  layerMode: 'pins',          // 'pins' | 'density'
   agencyFilter: new Set(['FBI','NASA','Department of War','Department of State']),
   yearMin: null, yearMax: null,
-  yearWindow: null,       // [min, max] currently selected
+  yearWindow: null,
   showOffEarth: true,
   selectedRecordId: null,
+  resizeBound: false,
   mount() {
     const main = document.getElementById('appMain');
     main.classList.add('bg-flush');
     main.innerHTML = `
       <div class="uearth">
         <div class="map-wrap">
-          <div class="uearth-map" id="uearthMap"></div>
+          <div class="uearth-globe" id="uearthGlobe"></div>
           <div class="uearth-overlay" id="uearthOverlay">
             <div class="uearth-overlay-row">
               <div class="uearth-pill"><span class="uearth-spark">🌎</span><strong>UEarth</strong> · UAP Atlas</div>
               <div class="uearth-mode" id="uearthMode">
-                <button class="${this.layerMode==='cluster'?'active':''}" data-m="cluster"><i class="material-icons">scatter_plot</i> Pins</button>
-                <button class="${this.layerMode==='heat'?'active':''}" data-m="heat"><i class="material-icons">whatshot</i> Density</button>
+                <button class="${this.layerMode==='pins'?'active':''}" data-m="pins"><i class="material-icons">scatter_plot</i> Pins</button>
+                <button class="${this.layerMode==='density'?'active':''}" data-m="density"><i class="material-icons">whatshot</i> Density</button>
+                <button data-m="rotate" id="uearthRotateBtn" class="active" title="Auto-rotate"><i class="material-icons">rotate_right</i></button>
+                <button data-m="reset" id="uearthResetBtn" title="Reset view"><i class="material-icons">restart_alt</i></button>
               </div>
             </div>
             <div class="uearth-overlay-row uearth-agencies" id="uearthAgencies"></div>
             <div class="uearth-overlay-row uearth-time" id="uearthTime"></div>
           </div>
+          <div class="uearth-globe-empty" id="uearthGlobeEmpty" hidden>
+            <i class="material-icons">public</i>
+            <div>Loading 3D globe…</div>
+          </div>
         </div>
         <aside class="uearth-side">
           <header class="uearth-side-head">
             <h3>UEarth · UAP Atlas</h3>
-            <p>Every pin is a place where a declassified UAP record was reported. Click pins to open records, drag the timeline to filter by year, or switch to <em>Density</em> for a global heatmap. Off-Earth incidents (Apollo, Gemini, lunar / orbital) appear in their own panel.</p>
+            <p>A 3D globe of every declassified UAP report. Drag to spin, scroll to zoom, click a pin to open its record, drag the timeline to filter by year, or switch to <em>Density</em> for a global heat-bin view. Off-Earth incidents (Apollo, Gemini, Skylab, orbital) fly out of the globe as animated arcs.</p>
           </header>
           <div class="uearth-stats" id="uearthStats"></div>
           <div class="uearth-section">
@@ -651,29 +671,64 @@ Views.uearth = {
             <h4>Off-Earth incidents <span id="uearthOffCount" class="badge"></span></h4>
             <ul class="uearth-list uearth-off" id="uearthOff"></ul>
           </div>
-          <div class="uearth-credit">Atlas concept inspired by <a href="https://github.com/AlexZhangji/ufo-pursue-open-atlas" target="_blank" rel="noreferrer">PURSUE Open Atlas</a> (CC0). Years for FBI/Cold-War cases corrected and cross-checked against the Department of War CSV.</div>
+          <div class="uearth-credit">3D globe rendered with <a href="https://globe.gl/" target="_blank" rel="noreferrer">globe.gl</a> · Atlas data inspired by <a href="https://github.com/AlexZhangji/ufo-pursue-open-atlas" target="_blank" rel="noreferrer">PURSUE Open Atlas</a> (CC0). Off-Earth arcs use the launch site closest to each mission.</div>
         </aside>
       </div>`;
     setTimeout(() => this.init(), 30);
   },
   init() {
-    // Year window from data
     const ys = state.enriched.map(r => r.year || (r.incident_date && /\b(19|20)\d{2}\b/.exec(r.incident_date) ? Number(/\b((?:19|20)\d{2})\b/.exec(r.incident_date)[1]) : null)).filter(y => y);
     this.yearMin = Math.min(...ys);
     this.yearMax = Math.max(...ys);
     if (!this.yearWindow) this.yearWindow = [this.yearMin, this.yearMax];
-    if (this.map) { this.map.remove(); this.map = null; this.cluster = null; this.heat = null; }
-    const map = L.map('uearthMap', { zoomControl:true, attributionControl:true, worldCopyJump:true, minZoom:2 })
-      .setView([22, 20], 2);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', { maxZoom: 18, subdomains:'abcd',
-      attribution:'&copy; OpenStreetMap &copy; CARTO · Atlas: <a href="https://github.com/AlexZhangji/ufo-pursue-open-atlas">PURSUE Open Atlas</a>' }).addTo(map);
-    this.map = map;
+
+    const host = document.getElementById('uearthGlobe');
+    if (!host) return;
+    if (typeof Globe !== 'function') {
+      document.getElementById('uearthGlobeEmpty').hidden = false;
+      document.getElementById('uearthGlobeEmpty').innerHTML = '<i class="material-icons">cloud_off</i><div>3D globe library failed to load — check network.</div>';
+      return;
+    }
+    if (this.globe) {
+      try { this.globe._destructor && this.globe._destructor(); } catch (e) {}
+      host.innerHTML = '';
+      this.globe = null;
+    }
+    const globe = Globe()(host)
+      .globeImageUrl('https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-night.jpg')
+      .bumpImageUrl('https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-topology.png')
+      .backgroundImageUrl('https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/night-sky.png')
+      .atmosphereColor('#3b82f6')
+      .atmosphereAltitude(0.18)
+      .showGlobe(true)
+      .showAtmosphere(true);
+    globe.width(host.clientWidth);
+    globe.height(host.clientHeight);
+    globe.pointOfView({ lat: 22, lng: 12, altitude: 2.6 }, 0);
+    const controls = globe.controls();
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.45;
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    this.globe = globe;
+
+    if (!this.resizeBound) {
+      this._onResize = () => {
+        if (!this.globe) return;
+        const h = document.getElementById('uearthGlobe');
+        if (!h) return;
+        this.globe.width(h.clientWidth); this.globe.height(h.clientHeight);
+      };
+      window.addEventListener('resize', this._onResize);
+      this.resizeBound = true;
+    }
+    setTimeout(() => this._onResize && this._onResize(), 60);
+
     this.renderAgencyChips();
     this.renderTimeSlider();
     this.renderModeToggle();
     this.renderLayer();
     this.renderSidebar();
-    setTimeout(() => map.invalidateSize(), 50);
   },
   effectiveCoords(r) {
     if (r.atlas_lat != null && r.atlas_lng != null) return [r.atlas_lat, r.atlas_lng];
@@ -701,8 +756,23 @@ Views.uearth = {
   renderModeToggle() {
     const host = document.getElementById('uearthMode');
     host.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
-      this.layerMode = b.dataset.m;
-      host.querySelectorAll('button').forEach(x => x.classList.toggle('active', x.dataset.m===this.layerMode));
+      const m = b.dataset.m;
+      if (m === 'rotate') {
+        if (!this.globe) return;
+        const c = this.globe.controls();
+        c.autoRotate = !c.autoRotate;
+        b.classList.toggle('active', c.autoRotate);
+        return;
+      }
+      if (m === 'reset') {
+        if (!this.globe) return;
+        this.globe.pointOfView({ lat: 22, lng: 12, altitude: 2.6 }, 900);
+        this.globe.controls().autoRotate = true;
+        document.getElementById('uearthRotateBtn').classList.add('active');
+        return;
+      }
+      this.layerMode = m;
+      host.querySelectorAll('button[data-m="pins"], button[data-m="density"]').forEach(x => x.classList.toggle('active', x.dataset.m===this.layerMode));
       this.renderLayer();
     }));
   },
@@ -794,45 +864,88 @@ Views.uearth = {
     });
   },
   renderLayer() {
-    if (!this.map) return;
-    if (this.cluster) { this.map.removeLayer(this.cluster); this.cluster = null; }
-    if (this.heat) { this.map.removeLayer(this.heat); this.heat = null; }
-    const items = this.filtered().filter(r => this.effectiveCoords(r));
-    if (this.layerMode === 'heat' && typeof L.heatLayer === 'function') {
-      const pts = items.map(r => { const c = this.effectiveCoords(r); return [c[0], c[1], 1]; });
-      this.heat = L.heatLayer(pts, { radius: 28, blur: 22, minOpacity: 0.45,
-        gradient: { 0.2:'#1a73e8', 0.45:'#34a853', 0.6:'#fbbc04', 0.85:'#ea4335', 1.0:'#ffffff' } }).addTo(this.map);
-    } else {
-      const cluster = (typeof L.markerClusterGroup === 'function')
-        ? L.markerClusterGroup({
-            iconCreateFunction: (c) => L.divIcon({
-              html: `<span class="uearth-clusterpin">${c.getChildCount()}</span>`,
-              className: '', iconSize: [40,40], iconAnchor: [20,20]
-            }),
-            showCoverageOnHover: false,
-            maxClusterRadius: 50
-          })
-        : L.layerGroup();
-      items.forEach(r => {
-        const [lat,lng] = this.effectiveCoords(r);
-        const color = this.agencyColorOf(r);
-        const icon = L.divIcon({
-          html: `<span class="uearth-pin" style="background:${color}" title="${escapeHtml(fmtTitle(r.title))}"></span>`,
-          className: '', iconSize:[16,16], iconAnchor:[8,8]
-        });
-        const m = L.marker([lat,lng], { icon, recordId: r.id });
-        m.bindPopup(this.popupHtml(r), { className:'uearth-popup' });
-        m.on('click', () => { this.selectedRecordId = r.id; });
-        m.on('popupopen', () => {
-          document.querySelectorAll('[data-uearth-open]').forEach(a => a.addEventListener('click', e => {
-            e.preventDefault(); const id = a.dataset.uearthOpen; if (state.byId[id]) openRecord(state.byId[id]._idx);
-          }));
-        });
-        cluster.addLayer(m);
-      });
-      this.cluster = cluster;
-      this.map.addLayer(cluster);
+    const g = this.globe;
+    if (!g) return;
+    const items = this.filtered();
+    const located = items.filter(r => this.effectiveCoords(r));
+    const off = items.filter(r => !this.effectiveCoords(r));
+
+    if (this.layerMode === 'density') {
+      const pts = located.map(r => { const [lat,lng] = this.effectiveCoords(r); return { lat, lng, w: 1, record: r }; });
+      const colorScale = (typeof d3 !== 'undefined' && d3.interpolateInferno) ? d3.interpolateInferno : (t => `rgba(${Math.round(t*255)},${Math.round(t*120)},${Math.round((1-t)*200)},0.9)`);
+      g.pointsData([])
+        .arcsData([])
+        .ringsData([])
+        .htmlElementsData([])
+        .hexBinPointsData(pts)
+        .hexBinPointLat('lat').hexBinPointLng('lng').hexBinPointWeight('w')
+        .hexBinResolution(3)
+        .hexAltitude(d => Math.min(0.5, 0.04 + d.sumWeight * 0.025))
+        .hexTopColor(d => colorScale(Math.min(1, d.sumWeight / 6)))
+        .hexSideColor(d => colorScale(Math.min(1, d.sumWeight / 6)))
+        .hexBinMerge(false)
+        .hexLabel(d => `<div class="uearth-tip"><strong>${d.points.length} record${d.points.length===1?'':'s'}</strong><br/><em>${d.points.slice(0,4).map(p => escapeHtml(fmtTitle(p.record.title))).join('<br/>')}</em>${d.points.length>4?`<br/>+${d.points.length-4} more`:''}</div>`);
+      return;
     }
+
+    // pins mode: surface markers + animated arcs for off-earth
+    const pinData = located.map(r => {
+      const [lat,lng] = this.effectiveCoords(r);
+      return { lat, lng, color: this.agencyColorOf(r), record: r };
+    });
+    const arcData = off.map(r => {
+      const ls = pickLaunchSite(r);
+      // jitter end point so arcs spread, not overlap
+      const dy = (Math.sin((r.id||'').length * 1.3) * 8) || 6;
+      const dx = (Math.cos((r.id||'').length * 1.7) * 18) || -12;
+      const c = this.agencyColorOf(r);
+      return {
+        startLat: ls.lat, startLng: ls.lng,
+        endLat: ls.lat + dy, endLng: ls.lng + dx,
+        color: [c, '#ffffff'], record: r, launch: ls.label
+      };
+    });
+
+    const root = document.getElementById('uearthGlobe');
+    const self = this;
+    g.hexBinPointsData([])
+      .htmlElementsData(pinData)
+      .htmlElement(d => {
+        const el = document.createElement('div');
+        el.className = 'uearth-globe-pin';
+        el.style.setProperty('--c', d.color);
+        el.innerHTML = '<span class="uearth-globe-pin-dot"></span><span class="uearth-globe-pin-pulse"></span>';
+        el.title = fmtTitle(d.record.title);
+        el.style.pointerEvents = 'auto';
+        el.style.cursor = 'pointer';
+        el.addEventListener('mouseenter', () => self._tip(self.popupHtml(d.record), root));
+        el.addEventListener('mouseleave', () => self._tip(null, root));
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (state.byId[d.record.id]) openRecord(state.byId[d.record.id]._idx);
+        });
+        return el;
+      })
+      .pointsData([])
+      .arcsData(arcData)
+      .arcStartLat('startLat').arcStartLng('startLng')
+      .arcEndLat('endLat').arcEndLng('endLng')
+      .arcColor('color')
+      .arcAltitude(0.45)
+      .arcStroke(0.55)
+      .arcDashLength(0.45).arcDashGap(0.18).arcDashAnimateTime(2200)
+      .arcLabel(d => `<div class="uearth-tip"><span class="uearth-tip-tag">Off-Earth · launched from ${escapeHtml(d.launch)}</span><strong>${escapeHtml(fmtTitle(d.record.title))}</strong><br/>${escapeHtml((d.record.description||'').slice(0,160))}${(d.record.description||'').length>160?'…':''}</div>`)
+      .onArcClick(d => { if (d.record && state.byId[d.record.id]) openRecord(state.byId[d.record.id]._idx); });
+  },
+  _tip(html, host) {
+    let tip = host.querySelector('.uearth-tip-floating');
+    if (!html) { if (tip) tip.remove(); return; }
+    if (!tip) {
+      tip = document.createElement('div');
+      tip.className = 'uearth-tip-floating';
+      host.appendChild(tip);
+    }
+    tip.innerHTML = html;
   },
   popupHtml(r) {
     const ag = AGENCIES[r.agency] || {};
@@ -843,7 +956,7 @@ Views.uearth = {
       <div class="uearth-card-title">${escapeHtml(fmtTitle(r.title))}</div>
       ${r.incident_location && r.incident_location!=='N/A' ? `<div class="uearth-card-loc"><i class="material-icons">place</i>${escapeHtml(r.incident_location)}</div>`:''}
       <p>${escapeHtml((r.description || '').slice(0, 200))}${(r.description||'').length>200?'…':''}</p>
-      <a href="#${r.id}" data-uearth-open="${r.id}" class="uearth-open">Open record →</a>
+      <span class="uearth-open">Click to open record →</span>
     </div>`;
   },
   renderSidebar() {
@@ -868,7 +981,11 @@ Views.uearth = {
       </li>`).join('') || '<li class="muted">No records in this filter.</li>';
     list.querySelectorAll('li[data-lat]').forEach(li => li.addEventListener('click', () => {
       const lat = Number(li.dataset.lat), lng = Number(li.dataset.lng);
-      this.map.setView([lat,lng], 6, { animate:true });
+      if (this.globe) {
+        this.globe.controls().autoRotate = false;
+        const btn = document.getElementById('uearthRotateBtn'); if (btn) btn.classList.remove('active');
+        this.globe.pointOfView({ lat, lng, altitude: 1.6 }, 1200);
+      }
     }));
     // off-earth
     const off = items.filter(r => !this.effectiveCoords(r));

@@ -389,9 +389,23 @@ mark.search-hit{background:#fff3a8;color:inherit;border-radius:2px;padding:0 1px
 .uphotos .photo-loc{font-size:11px;color:#bdc1c6}
 
 /* ============== UEarth (atlas) ============== */
-.uearth{position:absolute;inset:0;display:grid;grid-template-columns:1fr 380px;background:#06121f}
-.uearth .map-wrap{position:relative;background:#06121f}
+.uearth{position:absolute;inset:0;display:grid;grid-template-columns:1fr 380px;background:radial-gradient(ellipse at center,#0a1a2c 0%,#020611 80%)}
+.uearth .map-wrap{position:relative;background:radial-gradient(ellipse at center,#0a1a2c 0%,#020611 80%)}
 .uearth-map{position:absolute;inset:0}
+.uearth-globe{position:absolute;inset:0;cursor:grab}
+.uearth-globe:active{cursor:grabbing}
+.uearth-globe canvas{display:block}
+.uearth-globe-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#5f6c79;gap:8px;font-size:13px}
+.uearth-globe-empty .material-icons{font-size:42px;opacity:.6}
+.uearth-globe-pin{position:relative;width:14px;height:14px;color:var(--c);transform:translate(-50%,-50%)}
+.uearth-globe-pin-dot{position:absolute;inset:3px;background:var(--c);border-radius:50%;border:1.5px solid rgba(255,255,255,.95);box-shadow:0 0 8px var(--c),0 0 0 1px rgba(0,0,0,.5)}
+.uearth-globe-pin-pulse{position:absolute;inset:0;border-radius:50%;border:1.5px solid var(--c);opacity:.85;animation:uePulse 1.8s infinite ease-out}
+.uearth-globe-pin:hover .uearth-globe-pin-dot{transform:scale(1.4);transition:transform .2s}
+@keyframes uePulse{0%{transform:scale(1);opacity:.7}80%{transform:scale(2.4);opacity:0}100%{transform:scale(2.4);opacity:0}}
+.uearth-tip-floating{position:absolute;bottom:18px;left:18px;max-width:340px;background:rgba(10,20,33,.94);border:1px solid rgba(138,180,248,.3);color:#dadce0;padding:12px 14px;border-radius:14px;font-size:12px;line-height:1.55;backdrop-filter:blur(6px);box-shadow:0 18px 44px rgba(0,0,0,.7);z-index:560;pointer-events:none}
+.uearth-tip{font-size:12px;line-height:1.5;color:#dadce0;max-width:300px}
+.uearth-tip-tag{display:inline-block;background:rgba(138,180,248,.18);color:#8ab4f8;padding:2px 8px;border-radius:999px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.scene-tooltip{font-family:Roboto,Arial,sans-serif !important;background:rgba(10,20,33,.92) !important;border:1px solid rgba(138,180,248,.3) !important;border-radius:10px !important;padding:8px 10px !important;color:#dadce0 !important;font-size:12px !important;max-width:340px}
 .uearth-overlay{position:absolute;left:14px;top:14px;right:14px;display:flex;flex-direction:column;gap:8px;pointer-events:none;z-index:520}
 .uearth-overlay-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;pointer-events:auto}
 .uearth-pill{background:rgba(15,29,44,.92);color:#fff;padding:6px 12px;border-radius:999px;font-size:12px;display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(255,255,255,.1)}
