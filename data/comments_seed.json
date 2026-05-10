@@ -1,0 +1,146 @@
+{
+  "names": [
+    ["Aiko Tanaka", "Tokyo, Japan", "AT", "#e91e63"],
+    ["Mateus Oliveira", "São Paulo, Brazil", "MO", "#34a853"],
+    ["Priya Iyer", "Bengaluru, India", "PI", "#fb8c00"],
+    ["Liam O'Connor", "Dublin, Ireland", "LO", "#1976d2"],
+    ["Sofía Ramírez", "Mexico City, Mexico", "SR", "#7e57c2"],
+    ["Olamide Adebayo", "Lagos, Nigeria", "OA", "#00838f"],
+    ["Elena Petrova", "Moscow, Russia", "EP", "#c62828"],
+    ["Hassan Al-Farsi", "Muscat, Oman", "HA", "#5d4037"],
+    ["Mei Lin Chen", "Taipei, Taiwan", "MC", "#1a73e8"],
+    ["Lukas Müller", "Berlin, Germany", "LM", "#558b2f"],
+    ["Aroha Whitiao", "Auckland, NZ", "AW", "#ad1457"],
+    ["Daniel Park", "Seoul, South Korea", "DP", "#0288d1"],
+    ["Miriam Cohen", "Tel Aviv, Israel", "MC", "#6a1b9a"],
+    ["Jacques Lefèvre", "Paris, France", "JL", "#d81b60"],
+    ["Nguyen Van An", "Hanoi, Vietnam", "NA", "#00796b"],
+    ["Kirsten Andresen", "Oslo, Norway", "KA", "#3949ab"],
+    ["Femke de Vries", "Amsterdam, Netherlands", "FV", "#f57c00"],
+    ["Aigerim Bekova", "Almaty, Kazakhstan", "AB", "#43a047"],
+    ["Carlos Velázquez", "Madrid, Spain", "CV", "#8e24aa"],
+    ["Joseph Mwangi", "Nairobi, Kenya", "JM", "#388e3c"],
+    ["Ana Brkić", "Zagreb, Croatia", "AB", "#c2185b"],
+    ["Tarun Subramaniam", "Chennai, India", "TS", "#ef6c00"],
+    ["Karina Sokolov", "Kyiv, Ukraine", "KS", "#1565c0"],
+    ["Ngọc Trần", "Saigon, Vietnam", "NT", "#5c6bc0"],
+    ["Aleksandra Nowak", "Warsaw, Poland", "AN", "#7b1fa2"],
+    ["Riley Carter", "Austin, TX, USA", "RC", "#1a73e8"],
+    ["Saanvi Joshi", "Mumbai, India", "SJ", "#e53935"],
+    ["Amir Kazemi", "Tehran, Iran", "AK", "#26a69a"],
+    ["Felicity Brown", "Sydney, Australia", "FB", "#5e35b1"],
+    ["Yusuf Erdoğan", "Istanbul, Turkey", "YE", "#fb8c00"]
+  ],
+  "templates": {
+    "centcom_iraq": [
+      "The IR cross-cuing here is interesting — looks identical to the AARO 2024 Range Fouler case file. Same parallax behaviour.",
+      "Watch at 0:04 — that's not a balloon. The acceleration vector is way too clean for atmospheric.",
+      "Former AvCrew member: we used to call these 'jellyfish' over the Strait. Hundreds of sightings nobody dared report.",
+      "Lockheed sensor engineer here. The slewing pattern is consistent with a real object, not a sensor artifact.",
+      "Why is this footage so short? CENTCOM redacted the rest, classic. Need full unredacted release.",
+      "Compare this to the Aguadilla 2013 footage from CBP — heat signature is almost identical.",
+      "The MISREP form attached on the .gov is fascinating. They literally tracked it from station for 6 minutes.",
+      "Greetings from Doha — multiple operators on watch saw this same craft pattern that month. We discussed it for weeks.",
+      "Frame 1:12 - it splits. SPLITS. Tell me that's a drone and I'll laugh.",
+      "Russian source here, we observed similar phenomena over the Black Sea theatre. Glad someone is finally talking."
+    ],
+    "centcom_syria": [
+      "The unredacted MDR ID number here is significant — that's the Syria file analysts have been asking AARO about for two years.",
+      "Watch how the object holds station relative to the moving aircraft. That requires impossible thrust-to-mass.",
+      "These 'fast movers' over Syria were in the news in 2023. Glad we finally see the actual MISREP video.",
+      "I served on a destroyer in the Eastern Med during this period — we tracked exactly this kind of contact regularly.",
+      "Note the BYDGS exploitation tag at the bottom. That's the high-confidence track-quality classification.",
+      "Saw the same craft behaviour over Idlib in March 2023, never reported because of OPSEC. So glad someone did."
+    ],
+    "centcom_uae": [
+      "That formation flying near the UAE coast — we've been seeing reports of triangular formations there for years.",
+      "Greetings from Dubai. Local pilots talked about these sightings privately, no one wanted to go on record.",
+      "The Gulf has been a hotspot since at least 2018. AARO finally has actionable footage now.",
+      "Notice the MDR is approved by Brigadier Harrison himself — these are the highest-priority cases."
+    ],
+    "centcom_greece": [
+      "Aegean encounter, October 2023. There was ATC chatter about an unknown contact that night that civilian air traffic also picked up.",
+      "Watch the Aegean — Hellenic Air Force has been tracking these for years but never had release authority.",
+      "Crete naval station logs from this period reportedly include several similar contacts. Hopefully more are released.",
+      "Ζήτω η αλήθεια. Greek skies have stories most people don't know about."
+    ],
+    "centcom_oman": [
+      "Strait of Hormuz incident — the channel itself is so narrow this is essentially impossible to be a drone.",
+      "USS-based observer perspective: the radar return on these is not consistent with any known platform.",
+      "Glad CENTCOM finally cleared this one. The rumours about Hormuz contacts were widespread in 2020-21."
+    ],
+    "centcom_yemen": [
+      "Bab-el-Mandeb encounter — given the Houthi drone activity in the area this is significant context.",
+      "Note the date - this is right before things escalated regionally. Wonder if there's a connection."
+    ],
+    "centcom_generic": [
+      "These DOW-UAP releases are gold. Way more substantive than what AATIP/AAWSAP put out in the 2010s.",
+      "Anyone else noticing every video has identical sensor slew dynamics? Same craft, multiple sightings.",
+      "Reading the redacted MISREP attached to this — the cross-cuing detail alone is staggering.",
+      "Genuine first-hand: we got these alerts on watch and they were labeled 'PURSUE' before that name was public.",
+      "Quality of the FLIR is impressive. This is real military sensor data, not some reddit reupload.",
+      "My uncle was Air Force intel — said cases like this used to be classified at TS for life. Wild times.",
+      "Notice the Tasking Order [ATOE] reference — that's the tactical exploitation queue, very real.",
+      "These films are what disclosure was supposed to look like. Hard data, real provenance.",
+      "Rep. Burchett would have called this 'the smoking gun' five years ago. Now it's a Tuesday release."
+    ],
+    "apollo_11": [
+      "Buzz Aldrin actually talked about this object on multiple late-life interviews. He was deadly serious.",
+      "Armstrong was always more reserved, but the technical debriefing transcript here is fascinating.",
+      "NASA later attributed this to a panel from the SLA — but the timing window is *very* tight for that explanation.",
+      "60 years later and we finally get the full debrief. Better late than never I guess.",
+      "Listen for 'something out there' in the audio — Aldrin's tone is unmistakable.",
+      "I love how the official explanation never quite covers the persistence of the object."
+    ],
+    "apollo_12": [
+      "Conrad, Gordon, and Bean — Apollo 12 had THE strangest crew dynamic and still saw 'something' in lunar orbit.",
+      "The translunar coast is where these sightings cluster. Why is that?",
+      "Pete Conrad's recorded reaction is gold. 'What in the world is THAT?'",
+      "The VM photo series leaked here are the best Apollo-era anomaly photos publicly available now.",
+      "Bean's diary entries from the mission reportedly mention the object too — anyone have access to the full archive?"
+    ],
+    "apollo_17": [
+      "Schmitt was a geologist — he saw two flashes during EVAs. Ran spectroscopy in his head and went 'huh, weird.'",
+      "Cernan's last-man-on-the-Moon poetry contrasts hauntingly with these technical debriefs.",
+      "The Apollo 17 panoramic camera frames are a goldmine. Some of these objects are clearly not stars.",
+      "Lunar dust phenomena explain *some* of this. Not all of it."
+    ],
+    "gemini_7": [
+      "Borman calling out 'bogey at 10 o'clock high' is iconic — first official UFO report from a manned spacecraft.",
+      "Lovell's spent-Titan-II-booster explanation is the rational one, but listen to Borman's voice in the audio.",
+      "Gemini 7 was a 14-day mission. They saw a LOT up there. This is just the bit that survived classification.",
+      "December 1965. Gemini 7. The original space-UFO. Glad the audio is finally public.",
+      "The MISREP from 1965 is a piece of real history. NASA flight controllers pulled this for a reason."
+    ],
+    "skylab": [
+      "Skylab's debriefing audio is rarely discussed. This rotating-object section is huge.",
+      "The thermal-control issues on Skylab were already weird; add this and the missions were objectively bizarre.",
+      "Bean's notes (yes Apollo 12 Bean, on Skylab 3) are fascinating in this context."
+    ],
+    "fbi_modern": [
+      "The 2025 IR sightings have been the most consistent corpus of UAP imagery ever released.",
+      "Reading between the FBI redactions — the witness location is near Los Alamos. That changes things.",
+      "Heat signature is consistent across all eight FBI photos. Same craft / class of craft.",
+      "FBI getting ahead of disclosure for once. Good.",
+      "The 'Photo A1' through 'A8' nomenclature is standard FBI evidence labelling. These are evidence-grade."
+    ],
+    "general": [
+      "Department of War — first time hearing it called that since 1947. The rebrand alone deserves a thread.",
+      "PURSUE. Presidential Unsealing and Reporting System for UAP Encounters. What an acronym.",
+      "Look at the Mission Report PDF attached on the .gov — the BYDGS-2 tag is a real exploitation system.",
+      "This is exactly what 'controlled disclosure' looks like. Curated, formatted, on a .gov website.",
+      "Compare to the 2017 NYT Tic-Tac videos. Quality of metadata is night-and-day better here.",
+      "Whoever set up war.gov/UFO understood retention engineering. The whole site is shareable.",
+      "The lack of explanation in the MISREP is itself the most important data point.",
+      "Senator Rubio mentioned a release like this in March. Took 14 months but here we are.",
+      "I'm a former NORAD analyst. The fidelity of this footage is rare.",
+      "Watching from Tehran. We have heard rumours of similar sightings over Persian Gulf for decades."
+    ],
+    "moon": [
+      "Lunar surface photographs with anomalies are *the* topic for NASA-watchers — these new VM series are spectacular.",
+      "Lighting angle of the anomaly doesn't match the surrounding shadows. Always weird.",
+      "Apollo missions photographed something on every single flight, statistically that's wild.",
+      "The Moon has been photographed for 60+ years and there's still new stuff to see in old film. Crazy."
+    ]
+  }
+}

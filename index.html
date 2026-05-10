@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Umail — UAP Files Archive</title>
+<meta name="description" content="You are logged into potus@war.gov. Real declassified UAP records released by the U.S. Department of War (PURSUE), studied, indexed and explored across UTube, UDrive, UPhotos, UEarth, UCalendar and Umeni." />
+<link rel="icon" type="image/svg+xml" href="icons/favicon.svg" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=DM+Sans:wght@400;500;600;700&family=Google+Sans:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<div id="loading-screen">
+  <div class="loading-logo">
+    <span class="logo-spark">✦</span>
+    <span class="logo-text">Umail</span>
+  </div>
+  <div class="loading-bar"><div class="loading-bar-inner"></div></div>
+  <div class="loading-text">Decrypting transmission&hellip;</div>
+</div>
+
+<div class="app-shell" hidden>
+
+  <!-- ===== Header (Gmail-like, shared across all U-apps) ===== -->
+  <header class="app-header" id="appHeader">
+    <div class="header-left">
+      <button class="icon-btn" id="menuBtn" aria-label="Main menu"><i class="material-icons">menu</i></button>
+      <a class="logo-wrap" href="#" id="logoWrap">
+        <span class="logo-glyph" id="logoGlyph">M</span>
+        <span class="logo-word" id="logoWord">Umail</span>
+      </a>
+    </div>
+    <div class="header-search">
+      <button class="icon-btn search-icon"><i class="material-icons">search</i></button>
+      <input type="text" id="searchInput" placeholder="Search records, witnesses, agencies, locations" autocomplete="off" />
+      <button class="icon-btn search-clear" id="searchClear" hidden><i class="material-icons">close</i></button>
+      <button class="icon-btn search-tune" title="Search options"><i class="material-icons">tune</i></button>
+    </div>
+    <div class="header-right">
+      <button class="icon-btn" title="Help"><i class="material-icons">help_outline</i></button>
+      <button class="icon-btn" title="Settings"><i class="material-icons">settings</i></button>
+      <button class="umeni-btn" id="headerUmeniBtn" title="Open Umeni">
+        <span class="umeni-spark">✦</span><span>Umeni</span>
+      </button>
+      <div class="apps-pop-wrap">
+        <button class="icon-btn apps-btn" id="appsBtn" title="U-apps"><i class="material-icons">apps</i></button>
+        <div class="apps-pop" id="appsPop" hidden></div>
+      </div>
+      <button class="avatar-btn" title="Donald J. Trump (potus@war.gov)" id="avatarBtn">
+        <div class="avatar"><span>DT</span></div>
+      </button>
+    </div>
+  </header>
+
+  <!-- ===== Sidebar ===== -->
+  <nav class="app-sidebar" id="appSidebar">
+    <button class="compose-btn" id="composeBtn">
+      <i class="material-icons">edit</i><span>FOIA Request</span>
+    </button>
+
+    <ul class="nav-list" id="folderList">
+      <li class="nav-item active" data-folder="inbox">
+        <i class="material-icons">inbox</i><span class="nav-label">Inbox</span><span class="nav-count" id="cnt-inbox">0</span>
+      </li>
+      <li class="nav-item" data-folder="starred">
+        <i class="material-icons">star_border</i><span class="nav-label">Starred</span><span class="nav-count" id="cnt-starred">0</span>
+      </li>
+      <li class="nav-item" data-folder="redacted">
+        <i class="material-icons">visibility_off</i><span class="nav-label">Redacted</span><span class="nav-count">2104</span>
+      </li>
+      <li class="nav-item" data-folder="sent">
+        <i class="material-icons">send</i><span class="nav-label">Sent</span><span class="nav-count">0</span>
+      </li>
+      <li class="nav-item" data-folder="drafts">
+        <i class="material-icons">drafts</i><span class="nav-label">Sealed</span><span class="nav-count">17</span>
+      </li>
+      <li class="nav-item" data-folder="attachments">
+        <i class="material-icons">attach_file</i><span class="nav-label">Attachments</span><span class="nav-count" id="cnt-att">0</span>
+      </li>
+    </ul>
+
+    <details class="nav-section" open>
+      <summary>
+        <i class="material-icons summary-arrow">arrow_drop_down</i>
+        <span>TYPE</span>
+      </summary>
+      <ul class="nav-list" id="typeList">
+        <li class="nav-item type-item" data-type="PDF">
+          <i class="material-icons">description</i><span class="nav-label">Documents</span><span class="nav-count" id="cnt-pdf">0</span>
+        </li>
+        <li class="nav-item type-item" data-type="VID">
+          <i class="material-icons">play_circle_outline</i><span class="nav-label">Videos</span><span class="nav-count" id="cnt-vid">0</span>
+        </li>
+        <li class="nav-item type-item" data-type="IMG">
+          <i class="material-icons">photo</i><span class="nav-label">Photos</span><span class="nav-count" id="cnt-img">0</span>
+        </li>
+      </ul>
+    </details>
+
+    <details class="nav-section" open>
+      <summary>
+        <i class="material-icons summary-arrow">arrow_drop_down</i>
+        <span>AGENCIES</span>
+      </summary>
+      <ul class="nav-list" id="agencyList"></ul>
+    </details>
+
+    <details class="nav-section" open id="witnessSection">
+      <summary>
+        <i class="material-icons summary-arrow">arrow_drop_down</i>
+        <span>WITNESSES</span>
+      </summary>
+      <ul class="nav-list" id="witnessList"></ul>
+    </details>
+  </nav>
+
+  <!-- ===== Main content (router renders one view at a time) ===== -->
+  <main class="app-main" id="appMain"></main>
+
+  <!-- ===== Bottom dock ===== -->
+  <nav class="app-dock" role="navigation" aria-label="App navigation">
+    <button class="dock-item" data-app="umail" title="Umail">
+      <span class="dock-glyph" style="background:linear-gradient(135deg,#ea4335,#c5221f)">M</span>
+      <span class="dock-label">Umail</span>
+    </button>
+    <button class="dock-item" data-app="utube" title="UTube">
+      <span class="dock-glyph" style="background:#ff0033"><i class="material-icons">play_arrow</i></span>
+      <span class="dock-label">UTube</span>
+    </button>
+    <button class="dock-item" data-app="udrive" title="UDrive">
+      <span class="dock-glyph drive-glyph"></span>
+      <span class="dock-label">UDrive</span>
+    </button>
+    <button class="dock-item" data-app="uphotos" title="UPhotos">
+      <span class="dock-glyph photos-glyph"></span>
+      <span class="dock-label">UPhotos</span>
+    </button>
+    <button class="dock-item" data-app="uearth" title="UEarth">
+      <span class="dock-glyph" style="background:radial-gradient(circle at 30% 30%,#34a853 0,#1a73e8 80%)"></span>
+      <span class="dock-label">UEarth</span>
+    </button>
+    <button class="dock-item" data-app="ucalendar" title="UCalendar">
+      <span class="dock-glyph" style="background:#1a73e8;color:#fff;font-weight:700;font-size:13px;">26</span>
+      <span class="dock-label">UCalendar</span>
+    </button>
+    <button class="dock-item" data-app="usearch" title="USearch · full-text">
+      <span class="dock-glyph" style="background:#202124;color:#fff"><i class="material-icons" style="font-size:18px">search</i></span>
+      <span class="dock-label">USearch</span>
+    </button>
+    <button class="dock-item" data-app="umeni" title="Umeni">
+      <span class="dock-glyph umeni-glyph">✦</span>
+      <span class="dock-label">Umeni</span>
+    </button>
+    <a class="dock-item dock-kofi" href="https://ko-fi.com/theufofiles" target="_blank" rel="noreferrer" title="Support The UFO Files on Ko-fi">
+      <span class="dock-glyph kofi-glyph">☕</span>
+      <span class="dock-label">Support</span>
+    </a>
+  </nav>
+</div>
+
+<!-- ===== Record viewer modal (used by Umail, UDrive, UTube, etc.) ===== -->
+<div class="record-modal" id="recordModal" hidden aria-modal="true" role="dialog">
+  <div class="record-modal-shell">
+    <header class="record-header">
+      <div class="record-header-left">
+        <button class="icon-btn" id="modalBack" aria-label="Back"><i class="material-icons">arrow_back</i></button>
+        <button class="icon-btn" id="modalArchive" aria-label="Archive"><i class="material-icons">archive</i></button>
+        <button class="icon-btn" id="modalDelete" aria-label="Delete"><i class="material-icons">delete</i></button>
+        <span class="header-divider"></span>
+        <button class="icon-btn" id="modalStar" aria-label="Star"><i class="material-icons">star_border</i></button>
+        <button class="icon-btn" id="modalShare" aria-label="Share"><i class="material-icons">share</i></button>
+      </div>
+      <div class="record-header-right">
+        <span id="modalIndex"></span>
+        <button class="icon-btn" id="modalPrev"><i class="material-icons">chevron_left</i></button>
+        <button class="icon-btn" id="modalNext"><i class="material-icons">chevron_right</i></button>
+        <button class="icon-btn" id="modalClose" aria-label="Close"><i class="material-icons">close</i></button>
+      </div>
+    </header>
+    <section class="record-body">
+      <div class="record-subject-row">
+        <h2 class="record-subject" id="modalSubject"></h2>
+        <span class="record-tag" id="modalTag"></span>
+      </div>
+      <div class="record-meta-row">
+        <div class="sender-avatar" id="modalSenderAvatar"></div>
+        <div class="record-sender">
+          <div class="sender-line"><strong id="modalSender"></strong> <span class="sender-email" id="modalSenderEmail"></span></div>
+          <div class="recipient-line"><span>to <span id="modalRecipient">Donald J. Trump &lt;potus@war.gov&gt;</span></span></div>
+        </div>
+        <div class="sender-time" id="modalTime"></div>
+      </div>
+      <div class="record-incident-card" id="modalIncidentCard" hidden>
+        <div class="incident-row" id="modalIncident"></div>
+      </div>
+      <div class="record-description" id="modalDescription"></div>
+      <div class="record-attachment" id="modalAttachment"></div>
+      <div class="record-witnesses" id="modalWitnesses"></div>
+      <div class="record-pdf-snippet" id="modalSnippet"></div>
+      <div class="record-signoff" id="modalSignoff"></div>
+    </section>
+  </div>
+</div>
+
+<!-- ===== Witness profile modal ===== -->
+<div class="witness-modal" id="witnessModal" hidden aria-modal="true" role="dialog">
+  <div class="witness-shell">
+    <header class="witness-header">
+      <div class="witness-avatar" id="witnessAvatar"></div>
+      <div class="witness-id">
+        <h3 id="witnessName"></h3>
+        <span id="witnessTitle"></span>
+      </div>
+      <button class="icon-btn" id="witnessClose"><i class="material-icons">close</i></button>
+    </header>
+    <section class="witness-body">
+      <p class="witness-role" id="witnessRole"></p>
+      <h4 class="witness-recs-title">Records mentioning this witness <span id="witnessCount" class="badge"></span></h4>
+      <ul class="witness-records" id="witnessRecords"></ul>
+    </section>
+  </div>
+</div>
+
+<!-- ===== Umeni floating panel ===== -->
+<div class="umeni-panel" id="umeniPanel" hidden>
+  <header class="umeni-panel-head">
+    <span class="umeni-spark">✦</span>
+    <strong>Umeni</strong>
+    <span class="umeni-tag">grounded in 161 declassified records</span>
+    <button class="icon-btn" id="umeniPanelClose"><i class="material-icons">close</i></button>
+  </header>
+  <div class="umeni-panel-body" id="umeniPanelBody"></div>
+  <form class="umeni-input-row" id="umeniPanelForm">
+    <input type="text" id="umeniPanelInput" placeholder="Ask Umeni about a sighting, witness or location…" autocomplete="off" />
+    <button class="umeni-send" type="submit"><i class="material-icons">send</i></button>
+  </form>
+</div>
+
+<!-- ===== Lightbox ===== -->
+<div class="lightbox" id="lightbox" hidden>
+  <button class="icon-btn lightbox-close" id="lightboxClose"><i class="material-icons">close</i></button>
+  <button class="icon-btn lightbox-prev" id="lightboxPrev"><i class="material-icons">chevron_left</i></button>
+  <button class="icon-btn lightbox-next" id="lightboxNext"><i class="material-icons">chevron_right</i></button>
+  <div class="lightbox-stage" id="lightboxStage"></div>
+  <div class="lightbox-caption" id="lightboxCaption"></div>
+</div>
+
+<!-- ===== Compose / FOIA modal ===== -->
+<div class="compose-modal" id="composeModal" hidden>
+  <header class="compose-head">
+    <strong>FOIA Request</strong>
+    <div>
+      <button class="icon-btn" id="composeClose"><i class="material-icons">close</i></button>
+    </div>
+  </header>
+  <div class="compose-body">
+    <input class="compose-input" placeholder="To" value="foia@war.gov" />
+    <input class="compose-input" placeholder="Subject" value="Freedom of Information Act request — UAP records" />
+    <textarea class="compose-text" rows="10">Dear Records Custodian,
+
+Pursuant to the Freedom of Information Act (5 U.S.C. § 552), I respectfully request access to the following records:
+
+  • All declassified records related to Unidentified Anomalous Phenomena (UAP)
+    posted by the Department of War on https://www.war.gov/UFO/, plus any
+    additional materials in subsequent rolling releases under the Presidential
+    Unsealing and Reporting System for UAP Encounters (PURSUE).
+
+I am willing to pay reasonable fees up to $25.00. Please contact me before incurring additional charges.
+
+Sincerely,
+Donald J. Trump
+potus@war.gov</textarea>
+  </div>
+  <footer class="compose-foot">
+    <button class="primary-btn">Send</button>
+    <span class="muted">Drafts auto-saved · 17 sealed</span>
+  </footer>
+</div>
+
+<!-- Ko-fi Support modal (small popup explaining the support link) -->
+<div class="kofi-card" id="kofiCard" hidden>
+  <button class="icon-btn kofi-close" id="kofiClose"><i class="material-icons">close</i></button>
+  <div class="kofi-head"><span class="kofi-glyph">☕</span><strong>Support The UFO Files</strong></div>
+  <p>Supporting helps keep <strong>The UFO Files</strong> online and expanding — including hosting, archive indexing, document processing, OCR/search infrastructure, and adding new datasets and records.</p>
+  <a class="kofi-cta" href="https://ko-fi.com/theufofiles" target="_blank" rel="noreferrer">Support on Ko-fi →</a>
+</div>
+
+<!-- Scripts -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<script src="app.js"></script>
+<script src="views.js"></script>
+<script src="umeni.js"></script>
+</body>
+</html>

@@ -1,0 +1,138 @@
+{
+  "Aegean Sea": [
+    38.5,
+    25.0
+  ],
+  "Arabian Gulf": [
+    26.8,
+    51.5
+  ],
+  "Arabian Sea": [
+    15.0,
+    65.0
+  ],
+  "Azerbaijan": [
+    40.1431,
+    47.5769
+  ],
+  "Detroit, MI": [
+    42.3314,
+    -83.0458
+  ],
+  "Djibouti": [
+    11.8251,
+    42.5903
+  ],
+  "East China Sea": [
+    29.0,
+    125.0
+  ],
+  "Georgia": [
+    32.1656,
+    -82.9001
+  ],
+  "Germany": [
+    51.1657,
+    10.4515
+  ],
+  "Greece": [
+    39.0742,
+    21.8243
+  ],
+  "Gulf of Aden": [
+    12.0,
+    48.0
+  ],
+  "Gulf of Oman": [
+    24.5,
+    58.5
+  ],
+  "Indo-PACOM": [
+    20.0,
+    140.0
+  ],
+  "Iran": [
+    32.4279,
+    53.688
+  ],
+  "Iraq": [
+    33.2232,
+    43.6793
+  ],
+  "Japan": [
+    36.2048,
+    138.2529
+  ],
+  "Kazakhstan": [
+    48.0196,
+    66.9237
+  ],
+  "Low Earth Orbit": [
+    0.0,
+    0.0
+  ],
+  "Mediterranean Sea": [
+    35.0,
+    18.0
+  ],
+  "Mexico": [
+    23.6345,
+    -102.5528
+  ],
+  "Middle East": [
+    29.0,
+    41.0
+  ],
+  "Moon": [
+    0.0,
+    0.0
+  ],
+  "Netherlands": [
+    52.1326,
+    5.2913
+  ],
+  "North America": [
+    40.0,
+    -100.0
+  ],
+  "Pacific Ocean": [
+    10.0,
+    -150.0
+  ],
+  "Pacific Time Zone": [
+    37.5,
+    -122.0
+  ],
+  "Papua New Guinea": [
+    -6.314993,
+    143.95555
+  ],
+  "Southern United States": [
+    32.0,
+    -90.0
+  ],
+  "Strait of Hormuz": [
+    26.566,
+    56.25
+  ],
+  "Syria": [
+    34.8021,
+    38.9968
+  ],
+  "Turkmenistan": [
+    38.9697,
+    59.5563
+  ],
+  "United Arab Emirates": [
+    23.4241,
+    53.8478
+  ],
+  "United States": [
+    39.8283,
+    -98.5795
+  ],
+  "Western United States": [
+    39.0,
+    -113.0
+  ]
+}

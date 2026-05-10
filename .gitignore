@@ -1,0 +1,11 @@
+raw_pdfs/
+raw_text/
+dist/
+__pycache__/
+*.pyc
+.DS_Store
+/tmp/
+node_modules/
+.env
+.env.local
+*.log
