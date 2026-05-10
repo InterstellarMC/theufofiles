@@ -75,8 +75,15 @@ Python helpers used to prepare the data — they are not run at request time.
 
 - `enrich.py` – merges `records.json` with the open-atlas data, fixes the
   off-by-century year bugs, normalises agency colours.
-- `extract_images.py` / `optimize_images.py` – pull images out of the PDFs
-  and produce thumbnails for UPhotos.
+- `extract_images.py` / `optimize_images.py` – curated image extraction
+  (the original ~190-image set used in earlier releases).
+- `extract_images_all.py` – **full-document image dump** (2,349 images
+  from 87 PDFs). Runs `pdfimages` over every PDF, dedupes near-duplicates
+  per-PDF via perceptual hashing, and writes thumbnails. Required at
+  build time because the resulting `extracted_images/` and
+  `extracted_thumbs/` folders are gitignored.
+- `shrink_images.py` / `cap_for_deploy.py` – clamp full-image dimensions
+  and keep top-N images per PDF for the live preview deploy.
 - `build_search_index.py` – builds `pdf_pages.json` and `text_index.json`
   from the open-atlas `corpus.jsonl`.
 
