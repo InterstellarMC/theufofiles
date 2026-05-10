@@ -1,6 +1,9 @@
 raw_pdfs/
 raw_text/
 dist/
+extracted_images/
+extracted_thumbs/
+.extract_tmp/
 __pycache__/
 *.pyc
 .DS_Store

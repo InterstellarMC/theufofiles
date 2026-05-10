@@ -387,6 +387,9 @@ mark.search-hit{background:#fff3a8;color:inherit;border-radius:2px;padding:0 1px
 .uphotos .photo-card img{width:100%;height:100%;object-fit:cover;display:block}
 .uphotos .photo-overlay{position:absolute;inset:auto 0 0 0;padding:14px 10px 8px;background:linear-gradient(transparent,rgba(0,0,0,.78));color:#fff;font-size:12px;line-height:1.4;font-family:'Google Sans',sans-serif}
 .uphotos .photo-loc{font-size:11px;color:#bdc1c6}
+.uphotos .photo-page-tag{position:absolute;top:6px;left:6px;background:rgba(0,0,0,.7);color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;letter-spacing:.3px;font-family:'Google Sans',sans-serif;backdrop-filter:blur(6px);z-index:1}
+.uphotos .uphotos-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.uphotos #uphotosPdfFilter button.active{background:rgba(138,180,248,.18) !important;border-color:rgba(138,180,248,.4) !important;color:#8ab4f8 !important}
 
 /* ============== UEarth (atlas) ============== */
 .uearth{position:absolute;inset:0;display:grid;grid-template-columns:1fr 380px;background:radial-gradient(ellipse at center,#0a1a2c 0%,#020611 80%)}

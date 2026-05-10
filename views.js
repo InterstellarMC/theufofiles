@@ -474,31 +474,65 @@ Views.udrive = {
 Views.uphotos = {
   filter: 'all',
   source: 'official', // 'official' | 'documents'
+  pdfFilter: 'all',  // for documents source, optional pdf_id filter
+  query: '',
   lightboxIdx: -1,
   lightboxList: [],
   mount() {
     const main = document.getElementById('appMain');
     main.classList.remove('bg-flush');
     const docCount = (state.pdfImages || []).length;
+    const docPdfCount = new Set((state.pdfImages || []).map(p => p.pdf_id)).size;
     main.innerHTML = `
       <div class="uphotos">
         <div class="uphotos-head">
           <div class="uphotos-title">UPhotos · UAP photographs</div>
           <div class="uphotos-tabs" id="uphotosSource">
             <button class="ut-btn ${this.source==='official'?'active':''}" data-s="official">Official photo releases (${state.enriched.filter(r=>r.type==='IMG').length})</button>
-            <button class="ut-btn ${this.source==='documents'?'active':''}" data-s="documents">Embedded in documents (${docCount})</button>
+            <button class="ut-btn ${this.source==='documents'?'active':''}" data-s="documents">Embedded in documents (${docCount.toLocaleString()} from ${docPdfCount} files)</button>
+          </div>
+          <div class="uphotos-search" style="flex:1;display:flex;justify-content:flex-end">
+            <input id="uphotosQ" type="search" placeholder="Filter by document title or location\u2026" value="${escapeHtml(this.query)}" style="width:300px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);color:var(--text);font-size:13px" />
           </div>
         </div>
         <div class="uphotos-tabs" id="uphotosChips" style="margin-top:10px"></div>
+        <div id="uphotosPdfFilter" style="margin-top:6px"></div>
         <div class="uphotos-grid" id="uphotosGrid"></div>
       </div>`;
     document.querySelectorAll('#uphotosSource .ut-btn').forEach(b => b.addEventListener('click', () => {
       this.source = b.dataset.s;
       this.filter = 'all';
+      this.pdfFilter = 'all';
       this.mount();
     }));
+    const qi = document.getElementById('uphotosQ');
+    if (qi) qi.addEventListener('input', (e) => { this.query = e.target.value; this.render(); });
     this.renderChips();
+    this.renderPdfFilter();
     this.render();
+  },
+  renderPdfFilter() {
+    const host = document.getElementById('uphotosPdfFilter');
+    if (!host) return;
+    if (this.source !== 'documents') { host.innerHTML = ''; return; }
+    const counts = {};
+    (state.pdfImages || []).forEach(p => {
+      if (this.filter !== 'all' && p.agency !== this.filter) return;
+      counts[p.pdf_id] = counts[p.pdf_id] || { count: 0, title: p.pdf_title, agency: p.agency };
+      counts[p.pdf_id].count++;
+    });
+    const entries = Object.entries(counts).sort((a,b) => b[1].count - a[1].count).slice(0, 60);
+    if (!entries.length) { host.innerHTML = ''; return; }
+    host.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+      <span style="font-size:11px;color:#5f6368;text-transform:uppercase;letter-spacing:.5px;margin-right:6px">Source PDF:</span>
+      <button class="chip ${this.pdfFilter==='all'?'active':''}" data-pid="all" style="background:var(--surface-2);border:1px solid var(--line);padding:4px 9px;border-radius:6px;font-size:11px;cursor:pointer">All</button>
+      ${entries.map(([id,info]) => `<button class="chip ${this.pdfFilter===id?'active':''}" title="${escapeHtml(info.title)}" data-pid="${id}" style="background:var(--surface-2);border:1px solid var(--line);padding:4px 9px;border-radius:6px;font-size:11px;cursor:pointer">${escapeHtml(fmtTitle(info.title).slice(0, 40))}${info.title.length>40?'\u2026':''} <em style="opacity:.6;font-style:normal">${info.count}</em></button>`).join('')}
+    </div>`;
+    host.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+      this.pdfFilter = b.dataset.pid;
+      host.querySelectorAll('button').forEach(x => x.classList.toggle('active', x.dataset.pid===this.pdfFilter));
+      this.render();
+    }));
   },
   renderChips() {
     const chips = document.getElementById('uphotosChips');
@@ -518,7 +552,9 @@ Views.uphotos = {
     chips.innerHTML = opts.map(([k,l]) => `<button class="chip ${this.filter===k?'active':''}" data-k="${k}" style="background:var(--surface-2);border:1px solid var(--line);padding:6px 12px;border-radius:8px;font-size:12px;cursor:pointer">${l}</button>`).join('');
     chips.querySelectorAll('button').forEach(c => c.addEventListener('click', () => {
       this.filter = c.dataset.k;
+      this.pdfFilter = 'all';
       chips.querySelectorAll('button').forEach(x => x.classList.toggle('active', x.dataset.k===this.filter));
+      this.renderPdfFilter();
       this.render();
     }));
   },
@@ -542,18 +578,19 @@ Views.uphotos = {
     } else {
       let items = state.pdfImages || [];
       if (this.filter !== 'all') items = items.filter(p => p.agency === this.filter);
-      if (state.search) {
-        const q = state.search.toLowerCase();
-        items = items.filter(p => (p.pdf_title + ' ' + (p.incident_location||'')).toLowerCase().includes(q));
-      }
+      if (this.pdfFilter !== 'all') items = items.filter(p => p.pdf_id === this.pdfFilter);
+      const localQ = (this.query || '').toLowerCase().trim();
+      const globalQ = state.search ? state.search.toLowerCase() : '';
+      if (localQ) items = items.filter(p => (p.pdf_title + ' ' + (p.incident_location||'') + ' ' + (p.agency||'')).toLowerCase().includes(localQ));
+      if (globalQ) items = items.filter(p => (p.pdf_title + ' ' + (p.incident_location||'')).toLowerCase().includes(globalQ));
       this.lightboxList = items.map(p => ({ kind:'doc', r: state.byId[p.pdf_id],
         full: p.image, thumb: p.thumb || p.image,
         title: fmtTitle(p.pdf_title),
-        sub: `${AGENCIES[p.agency].short} · ${p.incident_location || 'Unknown'} · ${p.incident_date || 'Released ' + fmtRelDate(state.byId[p.pdf_id]?.release_date||'')}`,
-        link: p.pdf_url, w: p.w, h: p.h
+        sub: `${AGENCIES[p.agency].short} \u00b7 ${p.incident_location || 'Unknown'}${p.page ? ' \u00b7 page ' + p.page : ''} \u00b7 ${p.incident_date || 'Released ' + fmtRelDate(state.byId[p.pdf_id]?.release_date||'')}`,
+        link: p.pdf_url, w: p.w, h: p.h, page: p.page
       }));
       grid.innerHTML = this.lightboxList.length ? this.lightboxList.map((p, i) => this.cardHtmlDoc(p, i)).join('') :
-        `<div style="grid-column:1/-1;padding:60px;text-align:center;color:#5f6368">No embedded images in this view.</div>`;
+        `<div style="grid-column:1/-1;padding:60px;text-align:center;color:#5f6368">No embedded images match this filter.</div>`;
     }
     grid.querySelectorAll('.photo-card').forEach((c, i) => c.addEventListener('click', () => this.openLightbox(i)));
   },
@@ -571,6 +608,7 @@ Views.uphotos = {
     return `
       <div class="photo-card" data-i="${i}">
         <img loading="lazy" src="${escapeHtml(p.thumb)}" alt="${escapeHtml(p.title)}" onerror="this.style.display='none'" />
+        ${p.page ? `<div class="photo-page-tag">p.${p.page}</div>` : ''}
         <div class="photo-overlay">
           From document
           <div class="photo-loc" style="font-weight:600">${escapeHtml(p.title)}</div>
