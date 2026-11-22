@@ -552,7 +552,7 @@ Views.udrive = {
     const ag = AGENCIES[r.agency];
     const thumb = r.thumbnail_local || r.thumbnail_url || '';
     return `
-      <div class="doc-card" data-id="${r.id}">
+      <button type="button" class="doc-card" data-id="${r.id}">
         <div class="doc-thumb">
           ${thumb ? `<img loading="lazy" src="${escapeHtml(thumb)}" alt="" onerror="this.style.display='none'" />` : `<i class="material-icons" style="font-size:48px;color:#bdc1c6">picture_as_pdf</i>`}
         </div>
@@ -563,7 +563,7 @@ Views.udrive = {
             <div class="doc-agency">${escapeHtml(ag.short)} · ${escapeHtml(r.incident_location && r.incident_location!=='N/A' ? r.incident_location : 'Released '+fmtRelDate(r.release_date))}</div>
           </div>
         </div>
-      </div>`;
+      </button>`;
   }
 };
 
@@ -661,14 +661,13 @@ Views.uphotos = {
     if (this.source === 'official') {
       let items = state.enriched.filter(r => r.type === 'IMG');
       if (this.filter !== 'all') items = items.filter(r => r.agency === this.filter);
-      if (state.search) {
-        const q = state.search.toLowerCase();
-        items = items.filter(r => (r.title+' '+r.description).toLowerCase().includes(q));
-      }
+      const queries = [this.query, state.search].map(q => (q || '').trim().toLowerCase()).filter(Boolean);
+      items = items.filter(r => queries.every(q =>
+        [r.title, fmtTitle(r.title), r.description, r.incident_location, r.agency].join(' ').toLowerCase().includes(q)));
       this.lightboxList = items.map(r => ({ kind:'official', r,
-        full: r.asset_url, thumb: r.asset_url, title: fmtTitle(r.title),
+        full: r.thumbnail_local || r.asset_url, thumb: r.thumbnail_local || r.thumbnail_url || r.asset_url, title: fmtTitle(r.title),
         sub: `${AGENCIES[r.agency].short} · ${r.incident_location || 'Unknown'} · ${r.incident_date || 'Released ' + fmtRelDate(r.release_date)}`,
-        link: null
+        link: r.asset_url
       }));
       grid.innerHTML = this.lightboxList.length ? this.lightboxList.map((p, i) => this.cardHtmlOfficial(p, i)).join('') :
         `<div style="grid-column:1/-1;padding:60px;text-align:center;color:#5f6368">No photographs in this view.</div>`;
@@ -693,17 +692,18 @@ Views.uphotos = {
   },
   cardHtmlOfficial(p, i) {
     return `
-      <div class="photo-card" data-i="${i}">
-        <img loading="lazy" src="${escapeHtml(p.thumb)}" alt="${escapeHtml(p.title)}" onerror="this.style.display='none'" />
+      <button type="button" class="photo-card" data-i="${i}">
+        <i class="material-icons photo-placeholder" aria-hidden="true">image</i>
+        <img loading="lazy" src="${escapeHtml(p.thumb)}" alt="${escapeHtml(p.title)}" onerror="this.hidden=true" />
         <div class="photo-overlay">
           ${escapeHtml(p.title)}
           <div class="photo-loc">${escapeHtml(p.sub)}</div>
         </div>
-      </div>`;
+      </button>`;
   },
   cardHtmlDoc(p, i) {
     return `
-      <div class="photo-card" data-i="${i}">
+      <button type="button" class="photo-card" data-i="${i}">
         <img loading="lazy" src="${escapeHtml(p.thumb)}" alt="${escapeHtml(p.title)}" onerror="this.style.display='none'" />
         ${p.page ? `<div class="photo-page-tag">p.${p.page}</div>` : ''}
         <div class="photo-overlay">
@@ -711,21 +711,30 @@ Views.uphotos = {
           <div class="photo-loc" style="font-weight:600">${escapeHtml(p.title)}</div>
           <div class="photo-loc">${escapeHtml(p.sub)}</div>
         </div>
-      </div>`;
+      </button>`;
   },
   openLightbox(i) {
     this.lightboxIdx = i;
     const p = this.lightboxList[i];
     if (!p) return;
     const lb = document.getElementById('lightbox');
-    document.getElementById('lightboxStage').innerHTML = `<img src="${escapeHtml(p.full)}" alt="${escapeHtml(p.title)}" />`;
+    if (lb.hidden) this.lightboxTrigger = document.activeElement;
+    const stage = document.getElementById('lightboxStage');
+    const image = new Image();
+    image.alt = p.title;
+    image.onerror = () => {
+      if (image.isConnected) stage.innerHTML = '<p>Preview unavailable. Use the source link below.</p>';
+    };
+    stage.replaceChildren(image);
+    image.src = p.full;
     const recBtn = p.r ? `<button class="primary-btn" id="lbOpenRec" style="margin-left:10px">Open record</button>` : '';
-    const linkBtn = p.link ? `<a href="${escapeHtml(p.link)}" target="_blank" rel="noreferrer" style="margin-left:10px;color:#9ec1ff">↪ Source PDF</a>` : '';
+    const linkBtn = p.link ? `<a href="${escapeHtml(p.link)}" target="_blank" rel="noreferrer" style="margin-left:10px;color:#9ec1ff">↪ ${p.kind === 'doc' ? 'Source PDF' : 'Open original image'}</a>` : '';
     document.getElementById('lightboxCaption').innerHTML = `
       <strong>${escapeHtml(p.title)}</strong>
       <div style="margin-top:4px;opacity:.85">${escapeHtml(p.sub)}</div>
       <div style="margin-top:8px"><span style="font-size:11px;opacity:.6">${i+1} / ${this.lightboxList.length} · ← / → to navigate · Esc to close</span> ${recBtn}${linkBtn}</div>`;
     lb.hidden = false;
+    document.getElementById('lightboxClose').focus({preventScroll:true});
     document.getElementById('lbOpenRec')?.addEventListener('click', () => {
       const r = p.r;
       this.closeLightbox();
@@ -734,6 +743,7 @@ Views.uphotos = {
   },
   closeLightbox() {
     document.getElementById('lightbox').hidden = true;
+    this.lightboxTrigger?.focus();
   },
   lightboxNav(d) {
     if (this.lightboxIdx < 0) return;
@@ -989,8 +999,8 @@ Views.usearch = {
     main.innerHTML = `
       <div class="usearch">
         <div class="usearch-head">
-          <div class="usearch-title"><span class="usearch-glyph"><i class="material-icons">search</i></span> USearch · Full-text across all <strong>${(state.pdfPages||[]).length}</strong> declassified pages</div>
-          <p class="muted">Searches every page of every PDF — including FBI scanned files — using cleaned VLM-extracted text. Results show the matching snippet; click to open the source page.</p>
+          <div class="usearch-title"><span class="usearch-glyph"><i class="material-icons">search</i></span> USearch &middot; Indexed PDF search</div>
+          <p class="muted">Search indexed PDF text and open matching excerpts on their source pages.</p>
         </div>
         <form class="usearch-form" id="usearchForm">
           <input id="usearchInput" type="search" placeholder='Try: "flying disc", "PURSUE", "Tehran", "Apollo 11", "Roswell", "GO FAST", "Tic Tac"…' autocomplete="off" autofocus />
@@ -1029,10 +1039,27 @@ Views.usearch = {
       this.run();
     }));
   },
-  run() {
+  async run() {
     const out = document.getElementById('usearchResults');
     const stats = document.getElementById('usearchStats');
-    if (!this.q) { out.innerHTML = ''; stats.innerHTML = `<span>${(state.pdfPages||[]).length.toLocaleString()} pages indexed across ${state.enriched.filter(r=>r.type==='PDF').length} declassified PDFs.</span>`; return; }
+    if (!out || !stats) return;
+    const query = this.q;
+    if (!state.pdfPages) {
+      stats.textContent = 'Loading the PDF search index...';
+      try {
+        await loadArchiveText();
+      } catch {
+        if (stats.isConnected) stats.textContent = 'The index could not load. Submit a search to retry.';
+        return;
+      }
+      if (!out.isConnected || query !== this.q) return;
+    }
+    if (!query) {
+      const pdfCount = new Set(state.pdfPages.map(page => page.rid)).size;
+      out.innerHTML = '';
+      stats.textContent = `${state.pdfPages.length.toLocaleString()} pages indexed across ${pdfCount} PDFs.`;
+      return;
+    }
     const pages = state.pdfPages || [];
     const tokens = this.q.toLowerCase().split(/\s+/).filter(Boolean);
     if (!tokens.length) { out.innerHTML=''; return; }
@@ -1073,17 +1100,13 @@ Views.usearch = {
           <span class="muted">· ${escapeHtml(ag.short || r.agency)} · ${g.hits.length} matching page${g.hits.length===1?'':'s'}</span>
         </header>
         ${top.map(h => `
-          <a class="usearch-snippet" data-id="${r.id}" data-page="${h.p}">
+          <a class="usearch-snippet" href="${escapeHtml(r.asset_url.split('#')[0])}#page=${Number(h.p)}" target="_blank" rel="noreferrer">
             <span class="usearch-page">page ${h.p}/${h.tot}</span>
             <span class="usearch-text">${highlightSnippet(h.snippet, this.q)}</span>
           </a>`).join('')}
       </article>`;
     }).join('');
-    out.querySelectorAll('.usearch-snippet').forEach(a => a.addEventListener('click', e => {
-      e.preventDefault();
-      const r = state.byId[a.dataset.id];
-      if (r) openRecord(r._idx);
-    }));
+
   }
 };
 

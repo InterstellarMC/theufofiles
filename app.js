@@ -35,7 +35,6 @@ const APPS = [
 ];
 
 const state = {
-  records: [],
   enriched: [],
   witnesses: {},        // map name -> info
   textIndex: [],        // [{id, text}]
@@ -55,37 +54,49 @@ const state = {
   modalIndex: -1,
 };
 
+async function archiveJson(file) {
+  const response = await fetch('data/' + file);
+  if (!response.ok) throw new Error('Could not load ' + file);
+  return response.json();
+}
+
+let archiveTextRequest;
+function loadArchiveText() {
+  if (!archiveTextRequest) {
+    archiveTextRequest = Promise.all([
+      archiveJson('pdf_pages.json'),
+      archiveJson('pdf_pages_02_08.json'),
+      archiveJson('text_index.json'),
+    ]).then(([originalPages, laterPages, originalText]) => {
+      state.pdfPages = originalPages.concat(laterPages);
+      const pageTexts = new Map();
+      for (const page of laterPages) {
+        if (!pageTexts.has(page.rid)) pageTexts.set(page.rid, []);
+        pageTexts.get(page.rid).push(page.text);
+      }
+      state.textIndex = originalText.concat([...pageTexts].map(([id, texts]) => ({id, text: texts.join('\n')})));
+    }).catch(error => {
+      archiveTextRequest = null;
+      throw error;
+    });
+  }
+  return archiveTextRequest;
+}
+
 /* ----------------------- Init ----------------------- */
 async function init() {
   try {
-    const [recRes, enRes, witRes, txtRes, imgRes, cmtRes, pgRes, laterRes] = await Promise.all([
-      fetch('data/records.json'),
-      fetch('data/enriched.json'),
-      fetch('data/witnesses.json'),
-      fetch('data/text_index.json'),
-      fetch('data/pdf_images.json').catch(() => null),
-      fetch('data/comments_seed.json').catch(() => null),
-      fetch('data/pdf_pages.json').catch(() => null),
-      fetch('data/releases-02-08.json'),
+    const [enriched, witnesses, images, seed, later] = await Promise.all([
+      archiveJson('enriched.json'),
+      archiveJson('witnesses.json'),
+      archiveJson('pdf_images.json').catch(() => []),
+      archiveJson('comments_seed.json').catch(() => null),
+      archiveJson('releases-02-08.json'),
     ]);
-    state.records = await recRes.json();
-    state.enriched = await enRes.json();
-    state.witnesses = await witRes.json();
-    state.textIndex = await txtRes.json();
-    state.pdfImages = imgRes ? await imgRes.json().catch(()=>[]) : [];
-    state.pdfPages = pgRes ? await pgRes.json().catch(()=>[]) : [];
-    const later = await laterRes.json();
-    state.records.push(...later.records);
-    state.enriched.push(...later.records);
-    state.pdfPages.push(...later.pages);
-    const pageTexts = new Map();
-    for (const page of later.pages) {
-      if (!pageTexts.has(page.rid)) pageTexts.set(page.rid, []);
-      pageTexts.get(page.rid).push(page.text);
-    }
-    for (const [id, texts] of pageTexts) state.textIndex.push({id, text: texts.join('\n')});
-    const seed = cmtRes ? await cmtRes.json().catch(()=>null) : null;
-    if (seed && typeof Comments !== 'undefined') Comments.init(seed);
+    state.enriched = enriched.concat(later.records);
+    state.witnesses = witnesses;
+    state.pdfImages = images;
+    if (seed) Comments.init(seed);
     // index records by id for quick lookup
     state.byId = {};
     state.enriched.forEach((r, i) => {
@@ -378,11 +389,13 @@ function closeWitness() {
 function openRecord(idx) {
   const r = state.enriched[idx];
   if (!r) return;
+  if (state.modalIndex < 0) state.recordTrigger = document.activeElement;
   state.modalIndex = idx;
   markRead(r.id);
   renderModal(r);
   const modal = document.getElementById('recordModal');
   modal.hidden = false;
+  document.getElementById('modalClose').focus();
   document.body.style.overflow = 'hidden';
   history.replaceState(null, '', `#${r.id}`);
 }
@@ -391,7 +404,9 @@ function closeRecord() {
   document.body.style.overflow = '';
   const v = document.querySelector('#modalAttachment video');
   if (v) v.pause();
-  history.replaceState(null, '', window.location.pathname);
+  state.modalIndex = -1;
+  history.replaceState(null, '', '#app=' + state.selectedView);
+  state.recordTrigger?.focus();
 }
 function navModal(delta) {
   const list = state.filtered.length ? state.filtered : state.enriched;
@@ -693,6 +708,21 @@ function routeTo(app, push = true) {
 
 /* ----------------------- Event bindings ----------------------- */
 function bindGlobalEvents() {
+  const menu = document.getElementById('menuBtn');
+  const shell = document.querySelector('.app-shell');
+  const compact = matchMedia('(max-width: 960px)');
+  const setMenu = toggled => {
+    shell.classList.toggle('sidebar-open', toggled);
+    menu.setAttribute('aria-expanded', compact.matches ? toggled : !toggled);
+  };
+  setMenu(false);
+  compact.addEventListener('change', () => setMenu(false));
+  menu.addEventListener('click', () => setMenu(!shell.classList.contains('sidebar-open')));
+  document.getElementById('appSidebar').addEventListener('click', event => {
+    if (compact.matches && event.target.closest('.nav-item,.type-item')) setMenu(false);
+  });
+  document.getElementById('appMain').addEventListener('click', () => { if (compact.matches) setMenu(false); });
+
   // sidebar folders
   document.getElementById('folderList').addEventListener('click', e => {
     const li = e.target.closest('.nav-item');
@@ -795,12 +825,30 @@ function bindGlobalEvents() {
     if (e.target === document.getElementById('witnessModal')) closeWitness();
   });
 
-  // compose
-  document.getElementById('composeBtn').addEventListener('click', () => {
-    document.getElementById('composeModal').hidden = false;
+  const compose = document.getElementById('composeModal');
+  const draft = compose.querySelector('textarea');
+  const status = document.getElementById('composeStatus');
+  draft.value = localStorage.getItem('uap_foia_draft') ?? draft.value;
+  draft.addEventListener('input', () => {
+    localStorage.setItem('uap_foia_draft', draft.value);
+    status.textContent = 'Draft saved on this device.';
   });
-  document.getElementById('composeClose').addEventListener('click', () => {
-    document.getElementById('composeModal').hidden = true;
+  document.getElementById('composeBtn').addEventListener('click', () => {
+    setMenu(false);
+    compose.hidden = false;
+    draft.focus();
+  });
+  document.getElementById('composeClose').addEventListener('click', () => { compose.hidden = true; });
+  document.getElementById('composeCopy').addEventListener('click', async () => {
+    try {
+      const [recipient, subject] = compose.querySelectorAll('.compose-input');
+      await navigator.clipboard.writeText(`To: ${recipient.value}\nSubject: ${subject.value}\n\n${draft.value}`);
+      status.textContent = 'Draft copied.';
+    } catch {
+      draft.focus();
+      draft.select();
+      status.textContent = 'Draft selected. Use your device copy command.';
+    }
   });
 
   // keyboard
@@ -809,8 +857,13 @@ function bindGlobalEvents() {
       if (!document.getElementById('recordModal').hidden) closeRecord();
       else if (!document.getElementById('witnessModal').hidden) closeWitness();
       else if (!document.getElementById('lightbox').hidden) Views.uphotos.closeLightbox();
+      else if (!compose.hidden) compose.hidden = true;
+      else setMenu(false);
     }
-    if (!document.getElementById('recordModal').hidden) {
+    if (!document.getElementById('lightbox').hidden) {
+      if (e.key === 'ArrowLeft') Views.uphotos.lightboxNav(-1);
+      if (e.key === 'ArrowRight') Views.uphotos.lightboxNav(1);
+    } else if (!document.getElementById('recordModal').hidden) {
       if (e.key === 'ArrowLeft') navModal(-1);
       if (e.key === 'ArrowRight') navModal(1);
     }

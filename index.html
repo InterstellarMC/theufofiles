@@ -26,7 +26,7 @@
   <!-- ===== Header (Gmail-like, shared across all U-apps) ===== -->
   <header class="app-header" id="appHeader">
     <div class="header-left">
-      <button class="icon-btn" id="menuBtn" aria-label="Main menu"><i class="material-icons">menu</i></button>
+      <button class="icon-btn" id="menuBtn" aria-label="Main menu" aria-controls="appSidebar" aria-expanded="false"><i class="material-icons">menu</i></button>
       <a class="logo-wrap" href="#" id="logoWrap">
         <span class="logo-glyph" id="logoGlyph">M</span>
         <span class="logo-word" id="logoWord">Umail</span>
@@ -274,8 +274,8 @@ Donald J. Trump
 potus@war.gov</textarea>
   </div>
   <footer class="compose-foot">
-    <button class="primary-btn">Send</button>
-    <span class="muted">Drafts auto-saved · 17 sealed</span>
+    <button class="primary-btn" id="composeCopy">Copy draft</button>
+    <span class="muted" id="composeStatus" role="status">Drafts are stored on this device.</span>
   </footer>
 </div>
 

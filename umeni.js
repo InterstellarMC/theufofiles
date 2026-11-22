@@ -527,8 +527,9 @@ const Umeni = (() => {
     if (!host.querySelector('.umeni-msg')) host.replaceChildren();
     appendBubble(host, 'user', escapeHtml(query));
     const thinking = appendBubble(host, 'bot', '<em style="color:#5f6368">Searching declassified files…</em>');
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
+        await loadArchiveText();
         const result = composeAnswer(query);
         const followups = suggestFollowups(query, result.ctx);
         let html = result.html;

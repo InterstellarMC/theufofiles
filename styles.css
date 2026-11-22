@@ -630,3 +630,30 @@ mark.search-hit{background:#fff3a8;color:inherit;border-radius:2px;padding:0 1px
 .yt-sidebar button.yt-related{width:100%;background:transparent;border:0;color:inherit;text-align:left;font:inherit}
 .yt-sidebar button.yt-related:hover{background:#272727}
 .yt-timestamp{border:0;padding:0;background:transparent;color:#8ab4f8;font:inherit;font-weight:600;cursor:pointer}
+
+button.doc-card,button.photo-card{width:100%;text-align:left;font:inherit;color:inherit;padding:0}
+button.doc-card:focus-visible,button.photo-card:focus-visible{outline:2px solid #1a73e8;outline-offset:2px}
+@media(min-width:961px){
+  .app-shell.sidebar-open{grid-template-columns:1fr;grid-template-areas:"header" "main" "dock"}
+  .app-shell.sidebar-open .app-sidebar{display:none}
+}
+@media(max-width:960px){
+  .app-shell.sidebar-open .app-sidebar{display:block;position:fixed;top:var(--header-h);bottom:var(--dock-h);left:0;width:min(290px,85vw);background:var(--surface);z-index:55;box-shadow:var(--shadow-lg);padding-bottom:14px}
+  .app-dock{justify-content:safe center;overflow-x:auto;gap:8px;padding-inline:8px}
+  .dock-item{flex-shrink:0}
+  .compose-modal{width:min(540px,calc(100vw - 24px));right:12px}
+  .uearth{grid-template-rows:minmax(220px,45%) minmax(0,1fr)}
+  .uearth .uearth-side{display:block}
+}
+@media(max-width:620px){
+  .app-header{gap:5px;padding-inline:6px}
+  .header-right>button[title="Help"],.header-right>button[title="Settings"],.header-right .avatar-btn,.header-search .search-tune{display:none}
+  .header-left,.header-right{gap:3px}
+  .header-search{min-width:0}
+  .header-search input{min-width:0}
+  .logo-word{display:none}
+  .uphotos-search input{max-width:100%}
+}
+.photo-card .photo-placeholder{position:absolute;inset:0;display:grid;place-items:center;font-size:34px;color:#a4aec0}
+.photo-card img{position:relative}
+.lightbox-stage>p{color:#fff;padding:20px;text-align:center}
