@@ -212,13 +212,13 @@ const Umeni = (() => {
     const locations = new Set(); state.enriched.forEach(r => { if (r.incident_location && r.incident_location !== 'N/A') locations.add(r.incident_location); });
 
     const bullets = [
-      `<strong>${total} declassified records</strong> in PURSUE Release 01 (May 8, 2026): ${byType.PDF} documents, ${byType.VID} videos, ${byType.IMG} photographs.`,
+      `<strong>${total} declassified records</strong> across PURSUE Releases 01–08: ${byType.PDF} documents, ${byType.VID} videos, ${byType.IMG} photographs.`,
       `Agencies: ${Object.entries(byAgency).sort((a,b) => b[1]-a[1]).map(([a,c]) => `${fmtAgency(a)} (${c})`).join(', ')}.`,
       `Incident dates span <strong>${minY}–${maxY}</strong> — from World War II "foo-fighter" reports to October 2025 FBI photographs.`,
       `Geocoded across <strong>${locations.size}</strong> distinct locations, with the heaviest clustering in the CENTCOM AOR (Iraq, Syria, Arabian Gulf, Strait of Hormuz) and Apollo-era lunar / low-Earth orbit cases.`,
       `Headline cases: Gemini 7 (1965, Frank Borman), Apollo 11 / 12 / 17 transcripts and onboard photography, FBI file 62-HQ-83894 (1947 onward), and the 2020–2025 CENTCOM Mission Reports under "Range Fouler" disposition.`,
     ];
-    let html = `<strong>PURSUE Release 01 — overview</strong><ul>${bullets.map(b => `<li style="margin-bottom:6px">${b}</li>`).join('')}</ul>`;
+    let html = `<strong>PURSUE archive — overview</strong><ul>${bullets.map(b => `<li style="margin-bottom:6px">${b}</li>`).join('')}</ul>`;
     const ext = externalContextFor('pursue trump hegseth');
     if (ext.length) html += `<div class="external">${ext.map(e => '↪ ' + escapeHtml(e)).join('<br>')}</div>`;
     return html;
@@ -406,7 +406,7 @@ const Umeni = (() => {
       const snippet = bestMultiSnippet(res.text, terms) || (r.description || '').slice(0, 240);
       html += `<li style="margin-bottom:8px"><span class="source" data-rid="${r.id}">${r.id.toUpperCase()} · <em style="color:${ag.color}">${ag.short}</em></span> — <strong>${escapeHtml(fmtTitle(r.title))}</strong><br><span style="font-size:12px;color:#3c4043">${escapeHtml(snippet)}</span></li>`;
     });
-    html += `</ul><span class="grounding-label">Grounded in ${results.length} record${results.length===1?'':'s'} from the May 8, 2026 release.</span>`;
+    html += `</ul><span class="grounding-label">Grounded in ${results.length} record${results.length===1?'':'s'} from the PURSUE archive.</span>`;
     const ext = externalContextFor(q);
     if (ext.length) html += `<div class="external">${ext.map(e => '↪ ' + escapeHtml(e)).join('<br>')}</div>`;
     return html;

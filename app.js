@@ -5,12 +5,18 @@
 
 const CONFIG = {
   recipient: 'Donald J. Trump <potus@war.gov>',
-  release_label: 'Release 01',
-  release_date_label: 'May 8, 2026',
   release_url: 'https://www.war.gov/UFO/',
 };
 
 const AGENCIES = {
+  "CIA": {"short": "CIA", "full": "CIA", "domain": "@cia.gov", "color": "#5f6368", "initials": "CI", "pill": "dow"},
+  "Department of Energy": {"short": "Dept. of Energy", "full": "Department of Energy", "domain": "@energy.gov", "color": "#5f6368", "initials": "Do", "pill": "dow"},
+  "Office of the Director of National Intelligence": {"short": "ODNI", "full": "Office of the Director of National Intelligence", "domain": "@dni.gov", "color": "#5f6368", "initials": "OD", "pill": "dow"},
+  "Local Law Enforcement": {"short": "Local Law Enforcement", "full": "Local Law Enforcement", "domain": "", "color": "#5f6368", "initials": "LL", "pill": "dow"},
+  "Executive Office of the President": {"short": "Executive Office", "full": "Executive Office of the President", "domain": "@whitehouse.gov", "color": "#5f6368", "initials": "EO", "pill": "dow"},
+  "U.S. Government": {"short": "U.S. Government", "full": "U.S. Government", "domain": "", "color": "#5f6368", "initials": "UG", "pill": "dow"},
+  "Intelligence Community Agency": {"short": "Intelligence Community", "full": "Intelligence Community Agency", "domain": "", "color": "#5f6368", "initials": "IC", "pill": "dow"},
+
   'FBI': { short:'FBI', full:'Federal Bureau of Investigation', domain:'@fbi.gov', color:'#1a73e8', initials:'FB', pill:'fbi' },
   'NASA': { short:'NASA', full:'National Aeronautics and Space Administration', domain:'@nasa.gov', color:'#ea4335', initials:'NA', pill:'nasa' },
   'Department of War': { short:'Dept. of War', full:'United States Department of War', domain:'@war.gov', color:'#34a853', initials:'DW', pill:'dow' },
@@ -34,6 +40,7 @@ const state = {
   witnesses: {},        // map name -> info
   textIndex: [],        // [{id, text}]
   filtered: [],
+  selectedRelease: 0,
   selectedFolder: 'inbox',
   selectedAgency: null,
   selectedType: null,
@@ -51,7 +58,7 @@ const state = {
 /* ----------------------- Init ----------------------- */
 async function init() {
   try {
-    const [recRes, enRes, witRes, txtRes, imgRes, cmtRes, pgRes] = await Promise.all([
+    const [recRes, enRes, witRes, txtRes, imgRes, cmtRes, pgRes, laterRes] = await Promise.all([
       fetch('data/records.json'),
       fetch('data/enriched.json'),
       fetch('data/witnesses.json'),
@@ -59,6 +66,7 @@ async function init() {
       fetch('data/pdf_images.json').catch(() => null),
       fetch('data/comments_seed.json').catch(() => null),
       fetch('data/pdf_pages.json').catch(() => null),
+      fetch('data/releases-02-08.json'),
     ]);
     state.records = await recRes.json();
     state.enriched = await enRes.json();
@@ -66,6 +74,16 @@ async function init() {
     state.textIndex = await txtRes.json();
     state.pdfImages = imgRes ? await imgRes.json().catch(()=>[]) : [];
     state.pdfPages = pgRes ? await pgRes.json().catch(()=>[]) : [];
+    const later = await laterRes.json();
+    state.records.push(...later.records);
+    state.enriched.push(...later.records);
+    state.pdfPages.push(...later.pages);
+    const pageTexts = new Map();
+    for (const page of later.pages) {
+      if (!pageTexts.has(page.rid)) pageTexts.set(page.rid, []);
+      pageTexts.get(page.rid).push(page.text);
+    }
+    for (const [id, texts] of pageTexts) state.textIndex.push({id, text: texts.join('\n')});
     const seed = cmtRes ? await cmtRes.json().catch(()=>null) : null;
     if (seed && typeof Comments !== 'undefined') Comments.init(seed);
     // index records by id for quick lookup
@@ -110,6 +128,10 @@ async function init() {
 }
 
 /* ----------------------- Helpers ----------------------- */
+function sourceVideo(r) {
+  if (/^\d+$/.test(r.dvids_id || '')) return `<iframe class="video-player" title="${escapeHtml(r.title)}" src="https://www.dvidshub.net/video/embed/${r.dvids_id}" allowfullscreen></iframe>`;
+  return r.asset_url ? `<a href="${escapeHtml(r.asset_url)}" target="_blank" rel="noreferrer">Open official video record</a>` : 'Video unavailable.';
+}
 function makeEmailFor(r) {
   const ag = AGENCIES[r.agency] || AGENCIES['Department of War'];
   const base = (r.title.split(/[_\s]+/)[0] || 'records').toLowerCase().slice(0, 12);
@@ -229,6 +251,7 @@ function renderAppsPop() {
 function applyFilters() {
   const q = state.search.toLowerCase();
   state.filtered = state.enriched.filter(r => {
+    if (state.selectedRelease && (r.release || 1) !== state.selectedRelease) return false;
     if (state.selectedFolder === 'starred' && !state.starred.has(r.id)) return false;
     if (state.selectedAgency && r.agency !== state.selectedAgency) return false;
     if (state.selectedType && r.type !== state.selectedType) return false;
@@ -437,7 +460,7 @@ function renderModal(r) {
   document.getElementById('modalSignoff').innerHTML =
     `Sincerely,<br>${ag.full}<br>` +
     `<span style="font-family:'Space Mono',monospace;font-size:12px;color:#5f6368">` +
-    `Released ${fmtRelDate(r.release_date)} · Record ID ${r.id.toUpperCase()} · UAP/${CONFIG.release_label.replace(' ','_')}</span>`;
+    `Released ${fmtRelDate(r.release_date)} · Record ID ${r.id.toUpperCase()} · UAP/${'Release_' + String(r.release || 1).padStart(2, '0')}</span>`;
 
   const starBtn = document.getElementById('modalStar');
   starBtn.querySelector('i').textContent = state.starred.has(r.id) ? 'star' : 'star_border';
@@ -462,7 +485,7 @@ function renderAttachment(r) {
     </div>`;
   if (r.type === 'PDF') {
     const url = r.asset_url;
-    return head('pdf', fileNameFromUrl(url), `PDF · war.gov · Release_01`, url) +
+    return head('pdf', fileNameFromUrl(url), `PDF · war.gov · Release ${String(r.release || 1).padStart(2, "0")}`, url) +
       `<div class="attachment-body">
         <iframe class="pdf-frame" src="${escapeHtml(url)}#toolbar=1&view=FitH" title="${escapeHtml(r.title)}"></iframe>
       </div>`;
@@ -476,7 +499,7 @@ function renderAttachment(r) {
         ${url ? `<video class="video-player" controls preload="metadata" poster="${escapeHtml(poster)}">
           <source src="${escapeHtml(url)}" type="video/mp4">
           Your browser does not support video playback.
-        </video>` : '<p style="color:#5f6368">Video unavailable.</p>'}
+        </video>` : sourceVideo(r)}
         ${r.dvids_url ? `<p style="font-size:12px;color:#5f6368;margin-top:8px">Source: <a href="${escapeHtml(r.dvids_url)}" target="_blank" rel="noreferrer">DVIDS</a></p>` : ''}
       </div>`;
   }
@@ -524,13 +547,13 @@ function renderInbox() {
       </div>
       <p class="ai-overview-body">
         You are logged in as <strong>Donald J. Trump</strong> (potus@war.gov). These are
-        real UAP records <a href="${CONFIG.release_url}" target="_blank" rel="noreferrer">released by the U.S. Department of War on May 8, 2026</a>
+        real UAP records <a href="${CONFIG.release_url}" target="_blank" rel="noreferrer">published in PURSUE Releases 01–08</a>
         as part of the <em>Presidential Unsealing and Reporting System for UAP Encounters (PURSUE)</em>.
         Explore <span>${state.enriched.length}</span> declassified files by name, search, or
         <a href="#" id="randomLink">visit a random page</a>. Use the dock below for
         <a href="#" data-app="utube">UTube</a>, <a href="#" data-app="udrive">UDrive</a>,
         <a href="#" data-app="uphotos">UPhotos</a>, <a href="#" data-app="uearth">UEarth</a>,
-        <a href="#" data-app="ucalendar">UCalendar</a>, and <a href="#" data-app="umeni">Umeni</a>.
+        <a href="#" data-app="ucalendar">UCalendar</a>, and <a href="#" data-app="umeni">Umeni</a>. Additional summaries and page transcriptions by <a href="https://uapinsight.com/pursue/data">uapinsight.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>).
       </p>
     </div>
 
@@ -538,7 +561,7 @@ function renderInbox() {
       <div class="toolbar-left">
         <button class="icon-btn" id="refreshBtn" title="Refresh"><i class="material-icons">refresh</i></button>
         <button class="icon-btn" id="randomBtn" title="Open random record"><i class="material-icons">casino</i></button>
-        <button class="toolbar-chip release-chip"><i class="material-icons">folder</i><span>${CONFIG.release_label}</span><span class="more-tag">${CONFIG.release_date_label}</span></button>
+        <label class="toolbar-chip release-chip"><i class="material-icons">folder</i><select id="releaseFilter" aria-label="Filter inbox by release" style="font:inherit;color:inherit;background:transparent;border:0"><option value="0">All releases</option>${Array.from({length:8}, (_, i) => `<option value="${i+1}" ${state.selectedRelease === i+1 ? 'selected' : ''}>Release ${String(i+1).padStart(2,'0')}</option>`).join('')}</select></label>
         <button class="toolbar-chip" id="sortChip"><i class="material-icons">date_range</i><span id="sortLabel">Date</span><i class="material-icons small">arrow_drop_down</i></button>
         ${state.selectedWitness ? `<button class="toolbar-chip" id="clearWitness" style="color:#ea4335"><i class="material-icons">close</i><span>Witness: ${escapeHtml(state.selectedWitness)}</span></button>`:''}
         ${state.selectedAgency ? `<button class="toolbar-chip" id="clearAgency" style="color:#ea4335"><i class="material-icons">close</i><span>Agency: ${escapeHtml(state.selectedAgency)}</span></button>`:''}
@@ -588,6 +611,7 @@ function renderInbox() {
     const r = list[Math.floor(Math.random()*list.length)];
     openRecord(r._idx);
   });
+  document.getElementById('releaseFilter')?.addEventListener('change', e => { state.selectedRelease = Number(e.target.value); applyFilters(); });
   document.getElementById('refreshBtn')?.addEventListener('click', () => applyFilters());
   document.getElementById('randomLink')?.addEventListener('click', e => {
     e.preventDefault();

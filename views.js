@@ -156,7 +156,7 @@ const Players = {
     const tagsLine = ['#UAP', '#PURSUE', '#'+r.agency.replace(/\s+/g,''), r.incident_location ? '#'+r.incident_location.replace(/\s+/g,'') : ''].filter(Boolean).map(t=>`<span class="yt-tag">${escapeHtml(t)}</span>`).join('');
     const player = r.video_url
       ? `<video controls autoplay playsinline poster="${escapeHtml(r.poster_url || '')}"><source src="${escapeHtml(r.video_url)}" type="video/mp4"></video>`
-      : `<div class="yt-no-video"><i class="material-icons">videocam_off</i><div>Video unavailable</div></div>`;
+      : sourceVideo(r);
     return `
       <div class="yt-shell">
         <div class="yt-topbar">
@@ -453,7 +453,7 @@ Views.udrive = {
   },
   cardHtml(r) {
     const ag = AGENCIES[r.agency];
-    const thumb = r.thumbnail_local || '';
+    const thumb = r.thumbnail_local || r.thumbnail_url || '';
     return `
       <div class="doc-card" data-id="${r.id}">
         <div class="doc-thumb">
