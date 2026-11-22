@@ -2,7 +2,7 @@
 
 const Umeni = (() => {
 
-  const STOP = new Set(['the','a','an','of','and','or','to','in','on','at','for','from','by','is','are','was','were','be','been','being','it','its','this','that','these','those','as','with','about','any','all','what','where','when','who','how','why','which','do','does','did','i','me','my','you','your','we','our','they','their','please','tell','give','show','explain','summary','summarise','summarize','list','find','can','could','would','should','need','want','let','also','more','most','many','some']);
+  const STOP = new Set(['the','a','an','of','and','or','to','in','on','at','for','from','by','is','are','was','were','be','been','being','it','its','this','that','these','those','as','with','about','any','all','what','where','when','who','how','why','which','do','does','did','i','me','my','you','your','we','our','they','their','please','tell','give','show','explain','summary','summarise','summarize','list','find','can','could','would','should','need','want','let','also','more','most','many','some','pdf','passage','passages','excerpts','records']);
 
   function tokenize(s) {
     return (s || '').toLowerCase().replace(/[^a-z0-9'\-\s]/g,' ').split(/\s+/).filter(t => t && !STOP.has(t) && t.length > 1);
@@ -69,34 +69,6 @@ const Umeni = (() => {
     return Object.values(scores).sort((a,b) => b.score - a.score);
   }
 
-  /* --- External knowledge cards --- */
-  const EXTERNAL_NOTES = [
-    {match:['borman','gemini'], note: 'Public reporting (Wikipedia, NASA history pages) attributes the December 5, 1965 "bogey at 10 o\'clock high" sighting on Gemini 7 to Frank Borman; Jim Lovell ultimately concluded the unidentified object was the spent Titan II booster trailing them in orbit.'},
-    {match:['apollo 11'], note: 'Public reporting: the Apollo 11 crew (Armstrong, Aldrin, Collins) saw an unidentified object after trans-lunar injection in July 1969; NASA later attributed it to a panel from the SLA, but the original log entry was preserved as unresolved.'},
-    {match:['apollo 12'], note: 'Public reporting: Apollo 12 (Conrad, Gordon, Bean) photographed unidentified luminous objects on the November 1969 mission; the six NASA-UAP-VM photos in this release are likely those frames.'},
-    {match:['apollo 17','cernan','schmitt'], note: 'Public reporting: Apollo 17 (Cernan, Evans, Schmitt, December 1972) observed unidentified flashes during lunar transit and EVAs; Schmitt, the geologist, ran spectroscopy in his head and concluded "huh, weird".'},
-    {match:['skylab'], note: 'Public reporting: a 1973 Skylab crew sighting was logged when the crew photographed a rotating object during station-keeping; the technical debriefing is NASA-UAP-D7.'},
-    {match:['oak ridge','foo','foofighter'], note: 'Public reporting: 1944–45 "foo fighter" reports came from Allied bomber crews over Europe; the SHAEF intelligence summaries archived here include several first-person observations.'},
-    {match:['flying disc','62-hq-83894','arnold'], note: 'External context: FBI file 62-HQ-83894 spans June 1947 – July 1968 and was previously partially posted on the FBI Vault; it includes the Kenneth Arnold case (24 June 1947) that coined the term "flying saucer".'},
-    {match:['range fouler'], note: 'External context: "Range fouler" is a U.S. Navy term for an unidentified object that strays into a training range and disrupts an exercise — many of the recent CENTCOM debriefs use it.'},
-    {match:['centcom'], note: 'External context: USCENTCOM (Tampa, FL) covers the Middle East AOR and reports UAP sightings to AARO via the Joint Staff process. Approval authority for the redacted MISREPs in this release was BG Brandon R. Tegtmeier and BG Richard A. Harrison.'},
-    {match:['indopacom'], note: 'External context: USINDOPACOM (Camp Smith, HI) covers the Pacific theater. Two of its UAP debriefs are in this release.'},
-    {match:['aaro'], note: 'External context: the All-domain Anomaly Resolution Office (AARO) was created in 2022 as the DOD/DOW lead for resolving UAP cases; AARO\'s 2024 historical review found no evidence of recovered NHI craft.'},
-    {match:['pursue'], note: 'External context: PURSUE = Presidential Unsealing and Reporting System for UAP Encounters, the umbrella program for this rolling declassification announced May 8, 2026.'},
-    {match:['misrep'], note: 'External context: MISREP = Mission Report, the standard form theater commands use to document a tactical engagement. Each redacted PDF in this release follows the same template.'},
-    {match:['dvids'], note: 'External context: DVIDS (Defense Visual Information Distribution Service) is the Pentagon\'s public release portal — the videos in this drop have DVIDS mirrors.'},
-    {match:['hegseth','war.gov','department of war'], note: 'External context: Pete Hegseth, U.S. Secretary of War, oversaw the May 8, 2026 release: "The Department of War is in lockstep with President Trump\'s directive to deliver maximum transparency."'},
-    {match:['trump','potus','president'], note: 'External context: President Donald J. Trump signed the executive order creating PURSUE during his second term and posted the announcement on Truth Social on May 8, 2026.'},
-    {match:['titan ii'], note: 'External context: the Titan II launch vehicle for Gemini 7 left a spent second stage trailing in a similar orbit; multiple analysts have argued this explained Borman\'s "bogey".'},
-  ];
-
-  function externalContextFor(query) {
-    const q = query.toLowerCase();
-    return EXTERNAL_NOTES.filter(n => n.match.some(m => q.includes(m))).map(n => n.note);
-  }
-
-  /* --- Recognisers --- */
-  const YEAR_RE = /\b(19[4-9][0-9]|20[0-2][0-9])\b/;
   const MONTH_NAMES = ['january','february','march','april','may','june','july','august','september','october','november','december'];
   const MONTH_NUM = { january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12 };
 
@@ -174,7 +146,7 @@ const Umeni = (() => {
     'mdr': 'MDR — Mandatory Declassification Review. The administrative process used to release the redacted CENTCOM mission reports in this drop.',
     'dow': 'DOW — Department of War. The May 2025 rebrand of the Department of Defense, restoring the pre-1947 name. Owner of the war.gov UFO release portal.',
     'umail': 'Umail is the interface you\'re looking at — a Gmail-style reader for the declassified UAP records. Each record is laid out like an email, with sender (the agency), recipient (the President), incident metadata, and attachments (PDFs, videos, photos).',
-    'umeni': 'Umeni is the assistant you\'re talking to. I read every released file and description before answering. When I have to draw on outside knowledge (press, NASA history pages, Wikipedia), I clearly mark it with a ↪ "External context" prefix.',
+    'umeni': 'Umeni is the assistant you\'re talking to. I search archive metadata and indexed document text.',
     'utube': 'UTube is the video archive — every declassified UAP video in this release with a YouTube-style player and worldwide audience comments.',
     'udrive': 'UDrive is the document grid — every PDF in this release organised by agency and excerpt-availability.',
     'uphotos': 'UPhotos is the photograph gallery — both the official photo releases (FBI 2025 IR series + NASA-UAP-VM Apollo frames) and embedded images extracted from the document PDFs.',
@@ -192,8 +164,6 @@ const Umeni = (() => {
             rec.map(r => `<span class="source" data-rid="${r.id}">${r.id.toUpperCase()} · ${escapeHtml(fmtTitle(r.title)).slice(0,80)}</span>`).join('') +
             `</div>`;
         }
-        const ext = externalContextFor(q + ' ' + k);
-        if (ext.length) html += `<div class="external">${ext.map(e => '↪ ' + escapeHtml(e)).join('<br>')}</div>`;
         return html;
       }
     }
@@ -219,8 +189,6 @@ const Umeni = (() => {
       `Headline cases: Gemini 7 (1965, Frank Borman), Apollo 11 / 12 / 17 transcripts and onboard photography, FBI file 62-HQ-83894 (1947 onward), and the 2020–2025 CENTCOM Mission Reports under "Range Fouler" disposition.`,
     ];
     let html = `<strong>PURSUE archive — overview</strong><ul>${bullets.map(b => `<li style="margin-bottom:6px">${b}</li>`).join('')}</ul>`;
-    const ext = externalContextFor('pursue trump hegseth');
-    if (ext.length) html += `<div class="external">${ext.map(e => '↪ ' + escapeHtml(e)).join('<br>')}</div>`;
     return html;
   }
 
@@ -242,8 +210,6 @@ const Umeni = (() => {
       const brief = (r.description || '').split(/[\n.]/)[0].slice(0, 140);
       return `<li style="margin-bottom:6px"><span class="source" data-rid="${r.id}">${r.id.toUpperCase()}</span> <em style="color:${ag.color}">${ag.short}</em> · <strong>${escapeHtml(fmtTitle(r.title))}</strong> · ${escapeHtml(date)}<br><span style="font-size:12px;color:#3c4043">${escapeHtml(brief)}…</span></li>`;
     }).join('') + (items.length > 12 ? `<li>+ ${items.length - 12} more</li>` : '') + `</ul>`;
-    const ext = externalContextFor(q);
-    if (ext.length) html += `<div class="external">${ext.map(e => '↪ ' + escapeHtml(e)).join('<br>')}</div>`;
     return html;
   }
 
@@ -260,8 +226,6 @@ const Umeni = (() => {
       });
       html += `</div>`;
     }
-    const ext = externalContextFor(q + ' ' + name);
-    if (ext.length) html += `<div class="external">${ext.map(e => '↪ ' + escapeHtml(e)).join('<br>')}</div>`;
     return html;
   }
 
@@ -282,8 +246,6 @@ const Umeni = (() => {
       html += `<br><span class="grounding-label">From the PDF</span><div style="font-family:'Space Mono',monospace;font-size:12px;line-height:1.55;color:#3c4043;background:#fafafa;padding:8px;border-radius:6px;white-space:pre-wrap">${escapeHtml(r.pdf_snippet.slice(0, 900))}${r.pdf_snippet.length > 900 ? '…' : ''}</div>`;
     }
     html += `<div style="margin-top:8px"><span class="source" data-rid="${r.id}">Open ${r.id.toUpperCase()} →</span></div>`;
-    const ext = externalContextFor(q + ' ' + r.title + ' ' + (r.witnesses||[]).join(' '));
-    if (ext.length) html += `<div class="external">${ext.map(e => '↪ ' + escapeHtml(e)).join('<br>')}</div>`;
     return html;
   }
 
@@ -299,8 +261,6 @@ const Umeni = (() => {
     });
     if (records.length > 10) html += `<li>+ ${records.length - 10} more</li>`;
     html += `</ul>`;
-    const ext = externalContextFor(q + ' ' + loc);
-    if (ext.length) html += `<div class="external">${ext.map(e => '↪ ' + escapeHtml(e)).join('<br>')}</div>`;
     return html;
   }
 
@@ -320,8 +280,6 @@ const Umeni = (() => {
       const brief = (r.description || '').split(/[\n.]/)[0].slice(0, 130);
       return `<li style="margin-bottom:6px"><span class="source" data-rid="${r.id}">${r.id.toUpperCase()}</span> <em style="color:${ag.color}">${ag.short}</em> · <strong>${escapeHtml(fmtTitle(r.title))}</strong> · ${escapeHtml(date)}<br><span style="font-size:12px;color:#3c4043">${escapeHtml(brief)}…</span></li>`;
     }).join('') + (items.length > 12 ? `<li>+ ${items.length - 12} more</li>` : '') + `</ul>`;
-    const ext = externalContextFor(q);
-    if (ext.length) html += `<div class="external">${ext.map(e => '↪ ' + escapeHtml(e)).join('<br>')}</div>`;
     return html;
   }
 
@@ -358,7 +316,7 @@ const Umeni = (() => {
       });
     if (!items.length) return null;
     const r = items[0];
-    let html = `The most recent dated UAP sighting in this release is <strong>${escapeHtml(fmtTitle(r.title))}</strong> on <strong>${escapeHtml(r.date_parsed.label)}</strong>${r.incident_location && r.incident_location !== 'N/A' ? ` in <strong>${escapeHtml(r.incident_location)}</strong>` : ''}.<br><br>`;
+    let html = `The archive record with the latest reported date is <strong>${escapeHtml(fmtTitle(r.title))}</strong> on <strong>${escapeHtml(r.date_parsed.label)}</strong>${r.incident_location && r.incident_location !== 'N/A' ? ` in <strong>${escapeHtml(r.incident_location)}</strong>` : ''}.<br><br>`;
     html += escapeHtml((r.description||'').slice(0, 500));
     html += `<div style="margin-top:8px"><span class="source" data-rid="${r.id}">Open ${r.id.toUpperCase()} →</span></div>`;
     return html;
@@ -385,30 +343,74 @@ const Umeni = (() => {
       html += `<tr><td style="padding:6px 8px;border-bottom:1px solid #f1f3f4"><strong>${escapeHtml(s.label)}</strong></td><td style="padding:6px 8px;border-bottom:1px solid #f1f3f4">${recs.length}</td><td style="padding:6px 8px;border-bottom:1px solid #f1f3f4;color:#3c4043">${escapeHtml(note)}…</td></tr>`;
     });
     html += `</table>`;
-    const ext = externalContextFor(q);
-    if (ext.length) html += `<div class="external">${ext.map(e => '↪ ' + escapeHtml(e)).join('<br>')}</div>`;
     return html;
   }
 
   /* --- Generic fallback --- */
-  function genericAnswer(q) {
-    const results = rank(q).slice(0, 6);
+  let pagesByRecord;
+  function pageEvidence(record, terms) {
+    if (!pagesByRecord) {
+      pagesByRecord = new Map();
+      for (const page of state.pdfPages || []) {
+        if (!pagesByRecord.has(page.rid)) pagesByRecord.set(page.rid, []);
+        pagesByRecord.get(page.rid).push(page);
+      }
+    }
+    let best;
+    let maxScore = 0;
+    for (const page of pagesByRecord.get(record.id) || []) {
+      const text = (page.text || '').toLowerCase();
+      const score = terms.filter(term => text.includes(term)).length +
+        (text.includes(terms.join(' ')) ? terms.length : 0);
+      if (score > maxScore) { best = page; maxScore = score; }
+    }
+    if (!best || !record.asset_url || !Number(best.p)) return null;
+    const url = record.asset_url.split('#')[0] + '#page=' + Number(best.p);
+    return {
+      snippet: bestMultiSnippet(best.text, terms),
+      link: `<a class="source" href="${escapeHtml(url)}" target="_blank" rel="noreferrer">PDF page ${Number(best.p)} ↗</a>`
+    };
+  }
+
+  function releaseAnswer(release, q) {
+    const all = state.enriched.filter(r => (r.release || 1) === release);
+    if (!all.length) return 'Choose a release from 01 to 08.';
+    const type = detectType(q);
+    const agency = detectAgency(q);
+    const records = all.filter(r => (!type || r.type === type) && (!agency || r.agency === agency));
+    const label = String(release).padStart(2, '0');
+    const counts = [['PDF','documents'], ['VID','videos'], ['IMG','images']]
+      .map(([kind, name]) => `${records.filter(r => r.type === kind).length} ${name}`).join(' · ');
+    const links = records.slice(0, 8).map(r =>
+      `<li><button class="source" data-rid="${r.id}">${r.id.toUpperCase()}</button> ${escapeHtml(fmtTitle(r.title))}</li>`).join('');
+    return `<strong>Release ${label} · ${records.length} matching records</strong><br>${fmtRelDate(all[0].release_date)}, 2026 · ${counts}${agency ? ' · ' + escapeHtml(agency) : ''}
+      ${links ? `<ul>${links}</ul>` : ''}${records.length > 8 ? `<small>Showing 8 of ${records.length} matching records.</small>` : ''}`;
+  }
+
+
+  function genericAnswer(q, release) {
+    const pdfOnly = /\b(?:pdf passages?|excerpts?)\b/i.test(q);
+    const terms = tokenize(q);
+    const results = [];
+    for (const result of rank(q)) {
+      const record = state.byId[result.id];
+      if (release && (record.release || 1) !== release) continue;
+      if (pdfOnly && record.type !== 'PDF') continue;
+      const evidence = pageEvidence(record, terms);
+      if (pdfOnly && !evidence) continue;
+      results.push({result, record, evidence});
+      if (results.length === 6) break;
+    }
     if (!results.length) {
-      const ext = externalContextFor(q);
-      if (ext.length) return `Umeni couldn't find a direct reference inside the released files, but here is the relevant outside context:<div class="external">${ext.map(e => '↪ ' + escapeHtml(e)).join('<br>')}</div>`;
       return `Umeni couldn't find a direct reference to "${escapeHtml(q)}" inside the released files.<br>Try a year (e.g. 2020), a location (e.g. Greece, Iraq), an agency (FBI, NASA, Dept. of War), or a witness (Frank Borman, Apollo 12 Crew).`;
     }
-    const terms = tokenize(q);
     let html = `Here is what I found across the released files:<ul>`;
-    results.forEach(res => {
-      const r = state.byId[res.id];
+    results.forEach(({result: res, record: r, evidence}) => {
       const ag = AGENCIES[r.agency];
-      const snippet = bestMultiSnippet(res.text, terms) || (r.description || '').slice(0, 240);
-      html += `<li style="margin-bottom:8px"><span class="source" data-rid="${r.id}">${r.id.toUpperCase()} · <em style="color:${ag.color}">${ag.short}</em></span> — <strong>${escapeHtml(fmtTitle(r.title))}</strong><br><span style="font-size:12px;color:#3c4043">${escapeHtml(snippet)}</span></li>`;
+      const snippet = evidence?.snippet || bestMultiSnippet(res.text, terms) || (r.description || '').slice(0, 240);
+      html += `<li style="margin-bottom:8px"><span class="source" data-rid="${r.id}">${r.id.toUpperCase()} · <em style="color:${ag.color}">${ag.short}</em></span> — <strong>${escapeHtml(fmtTitle(r.title))}</strong><br><span style="font-size:12px;color:#3c4043">${escapeHtml(snippet)}</span><br>${evidence?.link || `<small>${res.kind === 'pdf' ? 'Indexed PDF text' : 'Archive metadata'}</small>`}</li>`;
     });
     html += `</ul><span class="grounding-label">Grounded in ${results.length} record${results.length===1?'':'s'} from the PURSUE archive.</span>`;
-    const ext = externalContextFor(q);
-    if (ext.length) html += `<div class="external">${ext.map(e => '↪ ' + escapeHtml(e)).join('<br>')}</div>`;
     return html;
   }
 
@@ -445,6 +447,16 @@ const Umeni = (() => {
     // Definitions
     const defAns = isDefinition(q) ? definitionAnswer(q) : null;
     if (defAns) return { html: defAns, ctx: {} };
+
+    const release = /\brelease\s+(\d{1,2})\b/i.exec(q);
+    if (release) {
+      const number = Number(release[1]);
+      const topic = q.replace(release[0], '').replace(/\b(?:in|from|of|the|about)\s*[?.!]*$/i, '').trim();
+      const inventory = number < 1 || number > 8 || !topic ||
+        /\b(?:how many|count|total|summary|summarise|summarize|overview)\b/i.test(topic);
+      return { html: inventory ? releaseAnswer(number, topic) : genericAnswer(topic, number), ctx: {} };
+    }
+    if (/\b(?:pdf passages?|excerpts?)\b/i.test(q)) return { html: genericAnswer(q), ctx: {} };
 
     // Overviews
     if (isOverview(q)) return { html: overviewAnswer(q), ctx: {} };
@@ -512,6 +524,7 @@ const Umeni = (() => {
   function runQuery(query, host) {
     host = host || document.getElementById('umeniMain') || document.getElementById('umeniPanelBody');
     if (!host) return;
+    if (!host.querySelector('.umeni-msg')) host.replaceChildren();
     appendBubble(host, 'user', escapeHtml(query));
     const thinking = appendBubble(host, 'bot', '<em style="color:#5f6368">Searching declassified files…</em>');
     setTimeout(() => {
@@ -525,9 +538,20 @@ const Umeni = (() => {
             `</div>`;
         }
         thinking.innerHTML = html;
-        thinking.querySelectorAll('.source').forEach(s => s.addEventListener('click', () => {
-          const r = state.byId[s.dataset.rid]; if (r) openRecord(r._idx);
-        }));
+        thinking.querySelectorAll('.source[data-rid]').forEach(source => {
+          if (source.tagName !== 'BUTTON') {
+            const button = document.createElement('button');
+            button.className = source.className;
+            button.innerHTML = source.innerHTML;
+            button.dataset.rid = source.dataset.rid;
+            source.replaceWith(button);
+            source = button;
+          }
+          source.onclick = () => {
+            const record = state.byId[source.dataset.rid];
+            if (record) openRecord(record._idx);
+          };
+        });
         thinking.querySelectorAll('.umeni-followups .chip').forEach(c => c.addEventListener('click', () => runQuery(c.dataset.fu, host)));
         host.scrollTop = host.scrollHeight;
       } catch (e) {

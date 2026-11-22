@@ -1022,87 +1022,122 @@ function highlightSnippet(s, q) {
 
 /* ============== UCalendar ============== */
 Views.ucalendar = {
+  axis: 'incident',
   view: 'timeline',
+  release: 'all',
+  year: 'all',
+  query: '',
+  month: null,
   mount() {
     const main = document.getElementById('appMain');
     main.classList.remove('bg-flush');
     main.innerHTML = `
       <div class="ucalendar">
         <div class="uc-head">
-          <div class="uc-title"><span class="uc-cube">26</span> UCalendar · UAP disclosure timeline</div>
-          <div class="uc-toggle">
-            <button class="${this.view==='timeline'?'active':''}" data-v="timeline">Timeline</button>
-            <button class="${this.view==='months'?'active':''}" data-v="months">By month</button>
+          <div class="uc-title"><span class="uc-cube"><i class="material-icons">event</i></span> UCalendar</div>
+          <div class="uc-toggle" aria-label="Calendar layout">
+            <button data-v="timeline">Timeline</button><button data-v="months">By month</button>
           </div>
         </div>
+        <form class="uc-filters" id="ucFilters">
+          <label>Date basis<select name="axis"><option value="incident">Reported incident dates</option><option value="release">Publication dates</option></select></label>
+          <label>Release<select name="release"><option value="all">All releases</option>${Array.from({length:8}, (_, i) => `<option value="${i+1}">Release ${String(i+1).padStart(2,'0')}</option>`).join('')}</select></label>
+          <label>Year<select name="year"></select></label>
+          <label class="uc-search">Search<input type="search" name="query" placeholder="Title, place, agency, or record ID"></label>
+        </form>
+        <p id="ucStatus" class="uc-status" aria-live="polite"></p>
         <div id="ucBody"></div>
       </div>`;
-    document.querySelectorAll('.uc-toggle button').forEach(b => b.addEventListener('click', () => {
-      this.view = b.dataset.v;
-      document.querySelectorAll('.uc-toggle button').forEach(x => x.classList.toggle('active', x.dataset.v===this.view));
+    const form = document.getElementById('ucFilters');
+    for (const key of ['axis', 'release', 'query']) form.elements[key].value = this[key];
+    form.onsubmit = event => event.preventDefault();
+    form.oninput = event => {
+      this[event.target.name] = event.target.value;
+      if (event.target.name === 'axis') this.year = 'all';
+      this.month = null;
       this.render();
-    }));
+    };
+    main.querySelectorAll('.uc-toggle button').forEach(button => {
+      button.onclick = () => {
+        this.view = button.dataset.v;
+        this.month = null;
+        this.render();
+      };
+    });
     this.render();
   },
+  date(record) {
+    if (this.axis === 'incident') return record.date_parsed;
+    const [month, day, year] = record.release_date.split('/').map(Number);
+    return {year: year < 100 ? year + 2000 : year, month, day, label: fmtRelDate(record.release_date)};
+  },
   render() {
-    const events = state.enriched
-      .filter(r => r.date_parsed && r.date_parsed.year)
-      .sort((a,b) => {
-        const da = new Date(a.date_parsed.year, (a.date_parsed.month||1)-1, a.date_parsed.day||1);
-        const db = new Date(b.date_parsed.year, (b.date_parsed.month||1)-1, b.date_parsed.day||1);
-        return da - db;
-      });
-    const body = document.getElementById('ucBody');
-    if (this.view === 'months') {
-      const buckets = {};
-      events.forEach(e => {
-        const k = `${e.date_parsed.year}-${String(e.date_parsed.month||0).padStart(2,'0')}`;
-        (buckets[k] = buckets[k] || []).push(e);
-      });
-      const keys = Object.keys(buckets).sort();
-      const months = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      body.innerHTML = `<div class="uc-month-grid">` +
-        keys.map(k => {
-          const [y,m] = k.split('-');
-          return `<div class="uc-month-card" data-y="${y}" data-m="${m}">
-            <div class="uc-mon">${months[Number(m)] || '—'} ${y}</div>
-            <div class="uc-cnt">${buckets[k].length}</div>
-          </div>`;
-        }).join('') + `</div>`;
-      body.querySelectorAll('.uc-month-card').forEach(c => c.addEventListener('click', () => {
-        this.view = 'timeline';
-        this.mount();
-        setTimeout(() => {
-          const yr = c.dataset.y;
-          const heading = body.querySelector(`[data-year="${yr}"]`);
-          if (heading) heading.scrollIntoView({behavior:'smooth', block:'start'});
-        }, 50);
-      }));
-      return;
+    const q = this.query.trim().toLowerCase();
+    const entries = state.enriched
+      .filter(r => (this.release === 'all' || (r.release || 1) === Number(this.release)) &&
+        (!q || [r.id, fmtTitle(r.title), r.agency, r.incident_location].join(' ').toLowerCase().includes(q)))
+      .map(r => ({r, date: this.date(r)}));
+    const years = [...new Set(state.enriched.map(r => this.date(r)?.year).filter(Boolean))].sort((a,b) => b-a);
+    const yearSelect = document.querySelector('#ucFilters [name=year]');
+    const yearOptions = '<option value="all">All years</option>' + years.map(y => `<option>${y}</option>`).join('');
+    if (yearSelect.options.length !== years.length + 1 || yearSelect.options[1]?.value !== String(years[0])) {
+      yearSelect.innerHTML = yearOptions;
     }
-    const byYear = {};
-    events.forEach(e => (byYear[e.date_parsed.year] = byYear[e.date_parsed.year] || []).push(e));
-    const years = Object.keys(byYear).sort();
-    body.innerHTML = `<div class="uc-timeline">` +
-      years.map(y => `
-        <h3 class="uc-year" data-year="${y}">${y} · ${byYear[y].length} sighting${byYear[y].length===1?'':'s'}</h3>
-        ` + byYear[y].map(e => {
-          const ag = AGENCIES[e.agency];
-          const tag = e.type==='PDF' ? 'DOC' : e.type==='VID' ? 'VID' : 'IMG';
-          const brief = e.description ? e.description.split(/[\n.]/).slice(0,2).join('. ').slice(0,220) + (e.description.length > 220 ? '…' : '') : '';
-          return `<div class="uc-event" data-id="${e.id}">
-            <div class="uc-date">${escapeHtml(e.date_parsed.label)}</div>
-            <div class="uc-loc"><i class="material-icons">place</i>${escapeHtml(e.incident_location || 'Unknown')}</div>
-            <div class="uc-detail">
-              <span class="uc-tag">${tag}</span>${escapeHtml(fmtTitle(e.title))}
-              <div class="muted" style="margin-top:4px;color:#5f6368;font-weight:400">${escapeHtml(brief)}</div>
-            </div>
-            <div class="muted" style="color:${ag.color};font-weight:600">${escapeHtml(ag.short)}</div>
-          </div>`;
-        }).join('')
-      ).join('') +
-      `</div>`;
-    body.querySelectorAll('.uc-event').forEach(el => el.addEventListener('click', () => openRecord(state.byId[el.dataset.id]._idx)));
+    yearSelect.value = this.year;
+    const undated = entries.filter(e => !e.date?.year);
+    const dated = entries.filter(e => e.date?.year && (this.year === 'all' || e.date.year === Number(this.year)))
+      .sort((a,b) => b.date.year-a.date.year || (b.date.month||0)-(a.date.month||0) || (b.date.day||0)-(a.date.day||0));
+    const groups = new Map();
+    for (const entry of dated) {
+      const key = `${entry.date.year}-${entry.date.month || 0}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(entry);
+    }
+    const months = ['Month unspecified','January','February','March','April','May','June','July','August','September','October','November','December'];
+    const heading = key => {
+      const [year, month] = key.split('-');
+      return month === '0' ? `${year} · Month unspecified` : `${months[Number(month)]} ${year}`;
+    };
+    document.querySelectorAll('.uc-toggle button').forEach(button => {
+      const active = button.dataset.v === this.view;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', active);
+    });
+    const visible = this.month ? groups.get(this.month) || [] : dated;
+    document.getElementById('ucStatus').textContent = `${visible.length} dated records${this.axis === 'incident' && undated.length ? ` · ${undated.length} without a usable incident date` : ''}`;
+    const body = document.getElementById('ucBody');
+    const sections = this.month ? [[this.month, visible]] : [...groups];
+    body.innerHTML = this.view === 'months'
+      ? `<div class="uc-month-grid">${[...groups].map(([key, records]) => `
+          <button class="uc-month-card" data-month="${key}"><span class="uc-mon">${heading(key)}</span><span class="uc-cnt">${records.length}</span></button>`).join('')}</div>`
+      : `<div class="uc-timeline">${this.month ? '<button class="chip" id="ucBack">← All months</button>' : ''}${sections.map(([key, records]) => `
+          <h3 class="uc-year">${heading(key)} · ${records.length} records</h3>${this.recordRows(records)}`).join('')}</div>`;
+    if (!dated.length) body.innerHTML = '<p class="uc-status">No dated records match these filters.</p>';
+    if (this.axis === 'incident' && this.year === 'all' && !this.month && undated.length) {
+      body.insertAdjacentHTML('beforeend', `<details class="uc-timeline"><summary>Browse records without a usable incident date (${undated.length})</summary>${this.recordRows(undated)}</details>`);
+    }
+    body.querySelectorAll('[data-month]').forEach(button => {
+      button.onclick = () => {
+        this.month = button.dataset.month;
+        this.view = 'timeline';
+        this.render();
+        document.getElementById('ucBack').focus();
+      };
+    });
+    const back = document.getElementById('ucBack');
+    if (back) back.onclick = () => { this.view = 'months'; this.month = null; this.render(); };
+    body.querySelectorAll('[data-record]').forEach(button => {
+      button.onclick = () => openRecord(state.byId[button.dataset.record]._idx);
+    });
+  },
+  recordRows(entries) {
+    return entries.map(({r, date}) => `<button class="uc-event" data-record="${r.id}">
+      <span class="uc-date">${escapeHtml(date?.label || r.incident_date || 'Date unknown')}</span>
+      <span class="uc-loc">${escapeHtml(r.incident_location === 'N/A' ? 'Location unspecified' : r.incident_location || 'Location unspecified')}</span>
+      <span class="uc-detail"><span class="uc-tag">${r.type}</span>${escapeHtml(fmtTitle(r.title))}
+      <small>${escapeHtml(r.agency)} · Release ${String(r.release || 1).padStart(2,'0')}</small></span>
+      <i class="material-icons" aria-hidden="true">chevron_right</i>
+    </button>`).join('');
   }
 };
 
@@ -1112,23 +1147,25 @@ Views.umeni = {
     const main = document.getElementById('appMain');
     main.classList.remove('bg-flush');
     main.innerHTML = `
-      <div style="padding:36px 40px;max-width:980px;margin:0 auto">
+      <div class="umeni-workspace">
         <div style="display:flex;align-items:center;gap:14px;margin-bottom:6px">
           <span class="dock-glyph umeni-glyph" style="width:44px;height:44px;font-size:24px">✦</span>
           <h1 style="font-family:'Google Sans';font-size:32px;font-weight:500;margin:0;background:linear-gradient(135deg,#9334e9,#1a73e8 60%,#34a853);-webkit-background-clip:text;background-clip:text;color:transparent">Hello, Mr. President</h1>
         </div>
-        <p style="color:#5f6368;font-size:16px;margin:0 0 24px">Ask Umeni anything about the ${state.enriched.length} declassified UAP records. Answers are grounded in the actual file text and descriptions; outside context is clearly marked.</p>
+        <p style="color:#5f6368;font-size:16px;margin:0 0 24px">Investigate ${state.enriched.length} archive records. Open a cited record or PDF page to check the evidence.</p>
         <div id="umeniSuggestRow" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px"></div>
-        <div id="umeniMain" style="background:#fff;border-radius:16px;border:1px solid #e8eaed;padding:18px 18px 8px"></div>
+        <div id="umeniMain" role="log" aria-label="Research conversation" style="background:#fff;border-radius:16px;border:1px solid #e8eaed;padding:18px 18px 8px"></div>
         <form id="umeniInlineForm" style="display:flex;gap:10px;margin-top:14px;align-items:center;background:#fff;border-radius:99px;border:1px solid #dadce0;padding:6px 6px 6px 16px;box-shadow:0 1px 3px rgba(0,0,0,.04)">
           <i class="material-icons" style="color:#5f6368">auto_awesome</i>
-          <input id="umeniInlineInput" placeholder="Ask Umeni — e.g. What did Frank Borman report on Gemini 7?" style="flex:1;border:none;outline:none;font-size:15px;padding:10px 0;background:transparent" />
+          <input aria-label="Ask Umeni" id="umeniInlineInput" placeholder="Ask Umeni — e.g. What did Frank Borman report on Gemini 7?" style="flex:1;border:none;outline:none;font-size:15px;padding:10px 0;background:transparent" />
           <button type="submit" class="primary-btn" style="border-radius:99px;padding:10px 22px">Ask</button>
         </form>
       </div>`;
 
     const suggestions = [
-      'Summarise the Apollo 12 sightings.',
+      'How many videos are in Release 08?',
+      'Summarise Release 07.',
+      'Find PDF passages about Project Blue Book.',
       'What happened in Greece in October 2023?',
       'Which records mention Frank Borman?',
       'List unresolved CENTCOM reports from 2020.',
@@ -1148,7 +1185,11 @@ Views.umeni = {
       const v = document.getElementById('umeniInlineInput').value.trim();
       if (v) { Umeni.runQuery(v, document.getElementById('umeniMain')); document.getElementById('umeniInlineInput').value=''; }
     });
-    Umeni.runQuery('Summarise this disclosure release in 5 bullet points.', document.getElementById('umeniMain'));
+    if (this.conversation) document.getElementById('umeniMain').replaceWith(this.conversation);
+    this.conversation = document.getElementById('umeniMain');
+    if (!this.conversation.childElementCount) {
+      this.conversation.innerHTML = '<p class="muted">Pick a question above or ask about a record, place, or release.</p>';
+    }
   }
 };
 

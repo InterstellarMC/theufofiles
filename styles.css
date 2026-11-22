@@ -578,3 +578,24 @@ mark.search-hit{background:#fff3a8;color:inherit;border-radius:2px;padding:0 1px
   .uearth{grid-template-columns:1fr;grid-template-rows:minmax(220px,45%) minmax(0,1fr);overflow:auto}
   .uearth .uearth-side{display:block;border-left:0;border-top:1px solid #263c57;padding-bottom:70px}
 }
+
+.uc-filters{display:flex;flex-wrap:wrap;gap:10px;padding:14px 32px}
+.uc-filters label{display:grid;gap:5px;font-size:12px;color:var(--text-2)}
+.uc-filters .uc-search{flex:1;min-width:190px}
+.uc-filters select,.uc-filters input{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text);font:inherit}
+.uc-status{margin:0;padding:4px 32px 10px;color:var(--text-2);font-size:13px}
+.ucalendar button.uc-event{width:100%;text-align:left;background:transparent;border:0;border-bottom:1px solid var(--line);color:var(--text);font:inherit;grid-template-columns:minmax(70px,.7fr) minmax(90px,1fr) minmax(0,4fr) auto}
+.uc-event small,.uc-month-card span{display:block}
+.uc-event small{margin-top:5px;color:var(--text-2);font-weight:400}
+.ucalendar button.uc-month-card{text-align:left;border:1px solid var(--line)}
+.uc-timeline summary{cursor:pointer}
+.umeni-workspace{padding:36px 40px;max-width:980px;margin:0 auto}
+#umeniMain{max-height:52vh;overflow:auto;display:flex;flex-direction:column;gap:8px}
+#umeniInlineInput{min-width:0}
+@media(max-width:640px){
+  .umeni-workspace{padding:18px 14px 80px}
+  .uc-filters,.uc-status{padding-left:14px;padding-right:14px}
+  .ucalendar button.uc-event{grid-template-columns:1fr auto;gap:5px}
+  .uc-event .uc-loc{grid-column:2}
+  .uc-event .uc-detail{grid-column:1}
+}
