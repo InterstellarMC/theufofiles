@@ -6,6 +6,10 @@ const Views = {};
 Views.utube = {
   filter: 'all',
   searchQ: '',
+  release: 'all',
+  sort: 'release',
+  savedOnly: false,
+  saved: new Set(JSON.parse(localStorage.getItem('utube_saved') || '[]')),
   mount() {
     const main = document.getElementById('appMain');
     main.classList.add('bg-flush');
@@ -18,9 +22,29 @@ Views.utube = {
           </div>
           <div class="muted" style="color:#aaa">${state.enriched.filter(r=>r.type==='VID').length} declassified videos</div>
         </div>
+        <form class="utube-filters" id="utubeFilters">
+          <input name="query" type="search" aria-label="Search UTube videos" placeholder="Search titles, places, or record IDs">
+          <select name="release" aria-label="Filter by release"><option value="all">All releases</option>${Array.from({length:8}, (_, i) => `<option value="${i+1}">Release ${String(i+1).padStart(2,'0')}</option>`).join('')}</select>
+          <select name="sort" aria-label="Sort videos"><option value="release">Release order</option><option value="latest">Latest release first</option><option value="shortest">Shortest first</option></select>
+          <label><input type="checkbox" name="saved"> Saved only</label>
+        </form>
         <div class="utube-chips" id="utubeChips"></div>
+        <p class="utube-results" id="utubeResults" aria-live="polite"></p>
         <div class="utube-grid" id="utubeGrid"></div>
       </div>`;
+    const form = document.getElementById('utubeFilters');
+    form.elements.query.value = this.searchQ;
+    form.elements.release.value = this.release;
+    form.elements.sort.value = this.sort;
+    form.elements.saved.checked = this.savedOnly;
+    form.onsubmit = event => event.preventDefault();
+    form.oninput = () => {
+      this.searchQ = form.elements.query.value;
+      this.release = form.elements.release.value;
+      this.sort = form.elements.sort.value;
+      this.savedOnly = form.elements.saved.checked;
+      this.render();
+    };
     this.renderChips();
     this.render();
   },
@@ -49,7 +73,11 @@ Views.utube = {
   render() {
     const grid = document.getElementById('utubeGrid');
     if (!grid) return;
-    let items = state.enriched.filter(r => r.type === 'VID');
+    const query = (this.searchQ || state.search || '').toLowerCase().trim();
+    let items = state.enriched.filter(r => r.type === 'VID' &&
+      (this.release === 'all' || Number(this.release) === (r.release || 1)) &&
+      (!this.savedOnly || this.saved.has(r.id)) &&
+      (!query || [r.id, r.title, fmtTitle(r.title), r.video_title, r.incident_location, r.agency].join(' ').toLowerCase().includes(query)));
     if (this.filter !== 'all') {
       const f = this.filter;
       items = items.filter(r => {
@@ -63,32 +91,44 @@ Views.utube = {
         return hay.includes(f.toLowerCase());
       });
     }
+    if (this.sort === 'latest') items.sort((a,b) => (b.release || 1) - (a.release || 1));
+    if (this.sort === 'shortest') items.sort((a,b) => (a.duration || Infinity) - (b.duration || Infinity));
+    document.getElementById('utubeResults').textContent = `${items.length} video${items.length === 1 ? '' : 's'}`;
     grid.innerHTML = items.length ? items.map(r => this.cardHtml(r)).join('') :
       `<div style="grid-column:1/-1;padding:60px;text-align:center;color:#aaa">No videos match this filter.</div>`;
-    grid.querySelectorAll('.vid-card').forEach(c => c.addEventListener('click', () => this.openPlayer(c.dataset.id)));
+    grid.querySelectorAll('.vid-card').forEach(card => {
+      card.querySelector('img')?.addEventListener('error', event => { event.target.hidden = true; });
+      card.onclick = () => this.openPlayer(card.dataset.id);
+    });
   },
   cardHtml(r) {
     const ag = AGENCIES[r.agency];
     const title = r.video_title || fmtTitle(r.title);
-    const dur = r.duration ? `${Math.floor(r.duration/60)}:${String(Math.round(r.duration%60)).padStart(2,'0')}` : 'mp4';
+    const dur = this.duration(r);
     const poster = r.poster_url || r.thumbnail_url || r.thumbnail_local || '';
     const dateLabel = (r.incident_date && r.incident_date !== 'N/A') ? r.incident_date : (r.incident_location || 'declassified');
-    const views = Comments.viewCount(r.id);
+
     return `
-      <div class="vid-card" data-id="${r.id}">
+      <button type="button" class="vid-card" data-id="${r.id}">
         <div class="vid-thumb">
-          ${poster ? `<img src="${escapeHtml(poster)}" alt="" />` : '<div style="width:100%;height:100%;background:#272727"></div>'}
+          <i class="material-icons vid-placeholder" aria-hidden="true">play_circle_outline</i>
+          ${poster ? `<img loading="lazy" decoding="async" src="${escapeHtml(poster)}" alt="" />` : '<div style="width:100%;height:100%;background:#272727"></div>'}
           <span class="vid-duration">${dur}</span>
         </div>
         <div class="vid-meta">
           <div class="vid-channel" style="background:${ag.color}">${ag.initials}</div>
           <div class="vid-text">
             <div class="vid-title">${escapeHtml(title)}</div>
-            <div class="vid-channel-name">${escapeHtml(ag.short)} · UAP archive</div>
-            <div class="vid-stats">${views} views · ${escapeHtml(dateLabel)} · Released ${escapeHtml(fmtRelDate(r.release_date))}</div>
+            <div class="vid-channel-name">${escapeHtml(ag.short)} · Release ${String(r.release || 1).padStart(2, '0')}</div>
+            <div class="vid-stats">${escapeHtml(dateLabel)} · Released ${escapeHtml(fmtRelDate(r.release_date))}</div>
           </div>
         </div>
-      </div>`;
+      </button>`;
+  },
+  duration(record) {
+    if (!record.duration) return '';
+    const seconds = Math.round(record.duration);
+    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2,'0')}`;
   },
   openPlayer(id) {
     const r = state.byId[id];
@@ -102,9 +142,13 @@ const Players = {
   current: null,
   openYouTube(r) {
     // Build full-screen YouTube-style overlay
-    if (this.current) this.current.remove();
+    if (!this.current) this.trigger = document.activeElement;
+    this.close(false);
     const overlay = document.createElement('div');
     overlay.className = 'yt-modal';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-labelledby', 'ytTitle');
     overlay.innerHTML = this.layoutHtml(r);
     document.body.appendChild(overlay);
     this.current = overlay;
@@ -116,19 +160,60 @@ const Players = {
       const liked = e.currentTarget.classList.contains('active');
       cnt.textContent = (parseInt(cnt.dataset.base) + (liked?1:0)).toLocaleString();
     });
-    overlay.querySelector('#ytSave')?.addEventListener('click', e => e.currentTarget.classList.toggle('active'));
-    overlay.querySelector('#ytSubscribe')?.addEventListener('click', e => {
-      const btn = e.currentTarget;
-      btn.classList.toggle('active');
-      btn.textContent = btn.classList.contains('active') ? 'Subscribed' : 'Subscribe';
+    const save = overlay.querySelector('#ytSave');
+    const saved = Views.utube.saved;
+    const refreshSave = () => {
+      save.setAttribute('aria-pressed', saved.has(r.id));
+      save.querySelector('span').textContent = saved.has(r.id) ? 'Saved' : 'Save';
+    };
+    refreshSave();
+    save.onclick = () => {
+      if (saved.has(r.id)) saved.delete(r.id); else saved.add(r.id);
+      localStorage.setItem('utube_saved', JSON.stringify([...saved]));
+      refreshSave();
+      if (Views.utube.savedOnly) Views.utube.render();
+    };
+    overlay.querySelector('#ytShare').onclick = async event => {
+      const button = event.currentTarget;
+      const url = location.href.split('#')[0] + '#vid=' + r.id;
+      try {
+        await navigator.clipboard.writeText(url);
+        button.querySelector('span').textContent = 'Link copied';
+      } catch {
+        const field = overlay.querySelector('#ytShareLink');
+        field.hidden = false;
+        field.value = url;
+        field.select();
+      }
+    };
+    overlay.querySelector('#ytSearchForm').onsubmit = event => {
+      event.preventDefault();
+      Views.utube.searchQ = overlay.querySelector('#ytSearch').value;
+      Views.utube.release = 'all';
+      Views.utube.filter = 'all';
+      Views.utube.savedOnly = false;
+      this.close();
+      routeTo('utube');
+    };
+    const video = overlay.querySelector('video');
+    if (video) video.addEventListener('error', () => {
+      video.hidden = true;
+      overlay.querySelector('#ytFallback').hidden = false;
+    }, {once:true});
+    overlay.querySelectorAll('[data-seek]').forEach(button => {
+      button.onclick = () => {
+        if (!video || !Number.isFinite(video.duration)) return;
+        video.currentTime = Math.min(Number(button.dataset.seek), video.duration);
+        video.play().catch(() => {});
+      };
     });
-    overlay.querySelector('#ytShare')?.addEventListener('click', () => {
-      navigator.clipboard?.writeText(location.href.split('#')[0] + '#vid=' + r.id);
-      const t = overlay.querySelector('#ytShare');
-      const orig = t.innerHTML;
-      t.innerHTML = '<i class="material-icons">check</i> Copied';
-      setTimeout(()=>{ t.innerHTML = orig; }, 1400);
+    overlay.querySelectorAll('[data-evidence]').forEach(button => {
+      button.onclick = () => {
+        this.close();
+        openRecord(state.byId[button.dataset.evidence]._idx);
+      };
     });
+    overlay.querySelector('#ytClose').focus();
     overlay.querySelector('#ytShowDesc')?.addEventListener('click', e => {
       const el = overlay.querySelector('.yt-desc');
       el.classList.toggle('expanded');
@@ -151,11 +236,16 @@ const Players = {
     const views = Comments.viewCount(r.id);
     const baseLikes = Comments.likeCount(r.id);
     const dateLabel = (r.incident_date && r.incident_date !== 'N/A') ? r.incident_date : 'date redacted';
-    const subs = Comments.subscriberCount(r.agency);
-    const desc = (r.description || '').replace(/\n+/g, '<br>');
+    const desc = escapeHtml(r.description || '').replace(/\n+/g, '<br>')
+      .replace(/(^|<br>)(\d{1,3}):([0-5]\d)(?=\s*[-\u2013\u2014])/g,
+        (match, boundary, minutes, seconds) => r.video_url
+          ? `${boundary}<button type="button" class="yt-timestamp" data-seek="${Number(minutes) * 60 + Number(seconds)}">${minutes}:${seconds}</button>`
+          : match);
+    const source = r.dvids_url || r.asset_url;
+    const evidence = this.evidenceFor(r);
     const tagsLine = ['#UAP', '#PURSUE', '#'+r.agency.replace(/\s+/g,''), r.incident_location ? '#'+r.incident_location.replace(/\s+/g,'') : ''].filter(Boolean).map(t=>`<span class="yt-tag">${escapeHtml(t)}</span>`).join('');
     const player = r.video_url
-      ? `<video controls autoplay playsinline poster="${escapeHtml(r.poster_url || '')}"><source src="${escapeHtml(r.video_url)}" type="video/mp4"></video>`
+      ? `<video controls autoplay playsinline preload="metadata" poster="${escapeHtml(r.poster_url || '')}" src="${escapeHtml(r.video_url)}"></video>`
       : sourceVideo(r);
     return `
       <div class="yt-shell">
@@ -165,10 +255,10 @@ const Players = {
             <span class="utube-play-glyph"><i class="material-icons">play_arrow</i></span>
             <span class="yt-brand">UTube</span>
           </div>
-          <div class="yt-search-wrap">
-            <input id="ytSearch" placeholder="Search UTube" />
-            <button class="yt-search-btn"><i class="material-icons">search</i></button>
-          </div>
+          <form class="yt-search-wrap" id="ytSearchForm">
+            <input id="ytSearch" placeholder="Search UTube" aria-label="Search UTube" />
+            <button class="yt-search-btn" aria-label="Search"><i class="material-icons">search</i></button>
+          </form>
           <div class="yt-topbar-right">
             <span class="material-icons" title="Notifications">notifications</span>
             <span class="avatar-circle small" style="background:#9334e9">DT</span>
@@ -176,88 +266,95 @@ const Players = {
         </div>
         <div class="yt-body">
           <div class="yt-main">
-            <div class="yt-player">${player}</div>
-            <h1 class="yt-title">${escapeHtml(title)}</h1>
+            <div class="yt-player">${player}<div id="ytFallback" class="yt-fallback" hidden>
+              <p>This video could not load.</p>${source ? `<a href="${escapeHtml(source)}" target="_blank" rel="noreferrer">Watch at the official source</a>` : ''}
+            </div></div>
+            <h1 class="yt-title" id="ytTitle">${escapeHtml(title)}</h1>
             <div class="yt-channel-row">
               <div class="yt-channel">
                 <span class="yt-channel-avatar" style="background:${ag.color}">${ag.initials}</span>
                 <div class="yt-channel-info">
                   <div class="yt-channel-name">${escapeHtml(ag.short)} <i class="material-icons" style="font-size:14px;color:#aaa;vertical-align:middle">verified</i></div>
-                  <div class="yt-channel-subs">${subs} subscribers</div>
+                  <div class="yt-channel-subs">${r.id.toUpperCase()} &middot; Archive record</div>
                 </div>
-                <button class="yt-subscribe" id="ytSubscribe">Subscribe</button>
+
               </div>
               <div class="yt-actions">
                 <button class="yt-action-btn" id="ytLike">
                   <i class="material-icons">thumb_up</i><span class="lk-cnt" data-base="${baseLikes}">${baseLikes.toLocaleString()}</span>
                 </button>
                 <button class="yt-action-btn" id="ytShare">
-                  <i class="material-icons">share</i> Share
+                  <i class="material-icons">share</i> <span>Share</span>
                 </button>
                 <button class="yt-action-btn" id="ytSave">
-                  <i class="material-icons">bookmark_add</i> Save
+                  <i class="material-icons">bookmark_add</i> <span>Save</span>
                 </button>
-                <button class="yt-action-btn">
-                  <i class="material-icons">download</i> Download
-                </button>
-                <button class="yt-action-btn">
-                  <i class="material-icons">more_horiz</i>
-                </button>
+                ${r.video_url ? `<a class="yt-action-btn" href="${escapeHtml(r.video_url)}" target="_blank" rel="noreferrer"><i class="material-icons">open_in_new</i> MP4</a>` : ''}
               </div>
             </div>
+            <input id="ytShareLink" aria-label="Shareable video link" readonly hidden>
             <div class="yt-desc">
               <div class="yt-desc-meta">
-                <strong>${views} views</strong> · ${escapeHtml(dateLabel)} · Released by Department of War on ${escapeHtml(fmtRelDate(r.release_date))}
+                <strong>${views} views</strong> · ${escapeHtml(dateLabel)} · Release ${String(r.release || 1).padStart(2, '0')} · ${escapeHtml(fmtRelDate(r.release_date))}
               </div>
               <div class="yt-tags">${tagsLine}</div>
               <div class="yt-desc-body">${desc}</div>
-              ${r.dvids_url ? `<div class="yt-desc-link"><a href="${escapeHtml(r.dvids_url)}" target="_blank" rel="noreferrer">↪ Open original on DVIDS</a></div>` : ''}
-              ${r.asset_url ? `<div class="yt-desc-link"><a href="${escapeHtml(r.asset_url)}" target="_blank" rel="noreferrer">↪ Mission report PDF (war.gov)</a></div>` : ''}
+              ${source ? `<div class="yt-desc-link"><a href="${escapeHtml(source)}" target="_blank" rel="noreferrer">View official video record</a></div>` : ''}
               <button class="yt-show-more" id="ytShowDesc">Show more</button>
             </div>
+            ${evidence.length ? `<section class="yt-evidence"><h2>Paired evidence</h2>${evidence.map(record =>
+              `<button data-evidence="${record.id}" class="yt-action-btn">${escapeHtml(fmtTitle(record.title))}</button>`).join('')}</section>` : ''}
             <div class="yt-comments-section" id="ytComments"></div>
           </div>
           <aside class="yt-sidebar" id="ytSidebar"></aside>
         </div>
       </div>`;
   },
+  evidenceFor(video) {
+    const code = title => (title || '').split(',')[0].trim().toUpperCase();
+    const pairs = (video.pdf_pairing || '').toUpperCase().split(/[,;\s]+/).filter(Boolean);
+    return state.enriched.filter(record => record.type !== 'VID' &&
+      (pairs.includes(code(record.title)) ||
+        (record.video_pairing || '').toUpperCase().split(/[,;\s]+/).includes(code(video.title))));
+  },
   bindRelated(overlay, r) {
     const others = state.enriched.filter(x => x.type === 'VID' && x.id !== r.id);
     // Prefer same-region / same-agency
-    const same = others.filter(x => x.agency === r.agency || (r.incident_location && x.incident_location === r.incident_location));
-    const list = same.concat(others.filter(x => !same.includes(x))).slice(0, 18);
+    const score = x => (r.incident_location && r.incident_location !== 'N/A' && x.incident_location === r.incident_location ? 4 : 0) +
+      ((x.release || 1) === (r.release || 1) ? 2 : 0) + (x.agency === r.agency ? 1 : 0);
+    const list = others.sort((a,b) => score(b) - score(a)).slice(0, 12);
     const html = list.map(x => {
       const ag = AGENCIES[x.agency];
       const title = x.video_title || fmtTitle(x.title);
-      const dur = x.duration ? `${Math.floor(x.duration/60)}:${String(Math.round(x.duration%60)).padStart(2,'0')}` : 'mp4';
+      const dur = Views.utube.duration(x);
       const poster = x.poster_url || x.thumbnail_url || x.thumbnail_local || '';
-      const v = Comments.viewCount(x.id);
       return `
-        <div class="yt-related" data-id="${x.id}">
+        <button class="yt-related" data-id="${x.id}">
           <div class="yt-related-thumb">
-            ${poster ? `<img src="${escapeHtml(poster)}">` : ''}
+            ${poster ? `<img loading="lazy" decoding="async" src="${escapeHtml(poster)}" alt="">` : ''}
             <span class="yt-related-dur">${dur}</span>
           </div>
           <div class="yt-related-meta">
             <div class="yt-related-title">${escapeHtml(title)}</div>
             <div class="yt-related-chan">${escapeHtml(ag.short)}</div>
-            <div class="yt-related-stats">${v} views · ${escapeHtml(fmtRelDate(x.release_date))}</div>
+            <div class="yt-related-stats">Release ${String(x.release || 1).padStart(2,'0')} &middot; ${escapeHtml(fmtRelDate(x.release_date))}</div>
           </div>
-        </div>`;
+        </button>`;
     }).join('');
-    overlay.querySelector('#ytSidebar').innerHTML = html;
+    overlay.querySelector('#ytSidebar').innerHTML = '<h2 class="yt-related-heading">Related videos</h2>' + html;
     overlay.querySelectorAll('.yt-related').forEach(el => el.addEventListener('click', () => {
       const id = el.dataset.id;
       const next = state.byId[id];
       if (next) this.openYouTube(next);
     }));
   },
-  close() {
+  close(restoreFocus = true) {
     if (!this.current) return;
     this.current.querySelector('video')?.pause();
     this.current.remove();
     this.current = null;
     document.removeEventListener('keydown', this._esc);
+    if (restoreFocus) this.trigger?.focus();
   }
 };
 

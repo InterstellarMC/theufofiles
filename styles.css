@@ -599,3 +599,34 @@ mark.search-hit{background:#fff3a8;color:inherit;border-radius:2px;padding:0 1px
   .uc-event .uc-loc{grid-column:2}
   .uc-event .uc-detail{grid-column:1}
 }
+
+.utube-filters{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:0 22px 10px;color:#f1f1f1;font-size:13px}
+.utube-filters input[type=search],.utube-filters select,#ytShareLink{min-width:0;padding:9px 12px;background:#202020;color:#f1f1f1;border:1px solid #434343;border-radius:8px;font:inherit;color-scheme:dark}
+.utube-filters input[type=search]{flex:1;min-width:min(235px,100%)}
+.utube-filters label{display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.utube-results{color:#bbb;font-size:13px;margin:8px 22px 6px}
+.utube button.vid-card{display:block;width:100%;padding:0;border:0;background:transparent;color:inherit;text-align:left;font:inherit;border-radius:12px}
+.utube button.vid-card:focus-visible,.yt-modal button:focus-visible,.yt-modal a:focus-visible{outline:2px solid #8ab4f8;outline-offset:3px}
+.vid-thumb .vid-placeholder{position:absolute;inset:0;display:grid;place-items:center;color:#aaa;font-size:38px;background:#242424}
+.vid-thumb img{position:relative}
+.vid-duration:empty,.yt-related-dur:empty{display:none}
+.yt-player iframe{width:100%;height:100%;border:0}
+.yt-action-btn{text-decoration:none}
+.yt-action-btn[aria-pressed=true]{background:#3b454f}
+.yt-fallback{height:100%;display:grid;align-content:center;justify-items:center;padding:16px;text-align:center}
+.yt-fallback a,.yt-desc-link a{color:#8ab4f8}
+.yt-evidence{margin-top:14px;padding:12px;border:1px solid #353535;border-radius:12px}
+.yt-evidence h2,.yt-related-heading{font-size:15px;margin:0 0 10px}
+.yt-evidence button{margin:3px 4px 3px 0;text-align:left;white-space:normal}
+#ytShareLink{margin-top:10px;width:100%}
+@media(max-width:580px){
+  .utube-filters{padding-inline:12px}
+  .utube-results{margin-inline:12px}
+  .yt-topbar{gap:8px;padding-inline:9px}
+  .yt-topbar-right{display:none}
+  .yt-search-wrap{min-width:0}
+  .yt-search-wrap input{min-width:0}
+}
+.yt-sidebar button.yt-related{width:100%;background:transparent;border:0;color:inherit;text-align:left;font:inherit}
+.yt-sidebar button.yt-related:hover{background:#272727}
+.yt-timestamp{border:0;padding:0;background:transparent;color:#8ab4f8;font:inherit;font-weight:600;cursor:pointer}

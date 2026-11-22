@@ -115,7 +115,10 @@ async function init() {
 
     // honor #hash on load (e.g. #r042 or #app=utube)
     const hash = location.hash.slice(1);
-    if (hash.startsWith('app=')) {
+    if (hash.startsWith('vid=') && state.byId[hash.slice(4)]?.type === 'VID') {
+      routeTo('utube', false);
+      Views.utube.openPlayer(hash.slice(4));
+    } else if (hash.startsWith('app=')) {
       routeTo(hash.slice(4), false);
     } else if (hash && state.byId[hash]) {
       openRecord(state.byId[hash]._idx);
