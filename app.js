@@ -663,6 +663,7 @@ function rowHtml(r) {
 /* ----------------------- Router ----------------------- */
 function routeTo(app, push = true) {
   if (!APPS.find(a => a.id === app)) app = 'umail';
+  if (state.selectedView === 'uearth') Views.uearth.unmount();
   state.selectedView = app;
   document.querySelectorAll('.dock-item').forEach(d => d.classList.toggle('active', d.dataset.app === app));
   // Update header logo

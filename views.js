@@ -645,31 +645,16 @@ Views.uphotos = {
   }
 };
 
-/* ============== UEarth (clustered atlas + time slider + agency colors) ============== */
-/* ============== UEarth · 3D globe (globe.gl / three.js) ============== */
-const LAUNCH_SITES = {
-  'Kennedy Space Center, FL': { lat: 28.573, lng: -80.649, label: 'Kennedy Space Center · Florida' },
-  'Cape Canaveral, FL':       { lat: 28.488, lng: -80.577, label: 'Cape Canaveral · Florida' },
-  'Houston, TX':              { lat: 29.560, lng: -95.094, label: 'Johnson Space Center · Houston' },
-  'Baikonur, Kazakhstan':     { lat: 45.965, lng: 63.305,  label: 'Baikonur Cosmodrome' }
-};
-function pickLaunchSite(r) {
-  const t = ((r.title||'') + ' ' + (r.description||'') + ' ' + (r.incident_location||'')).toLowerCase();
-  if (/baikonur|soyuz|salyut/.test(t)) return LAUNCH_SITES['Baikonur, Kazakhstan'];
-  if (/houston|johnson|mission control/.test(t)) return LAUNCH_SITES['Houston, TX'];
-  if (/apollo|gemini|skylab|saturn|ksc|kennedy/.test(t)) return LAUNCH_SITES['Kennedy Space Center, FL'];
-  return LAUNCH_SITES['Cape Canaveral, FL'];
-}
-
+/* ============== UEarth · UAP Atlas ============== */
 Views.uearth = {
   globe: null,
-  layerMode: 'pins',          // 'pins' | 'density'
-  agencyFilter: new Set(['FBI','NASA','Department of War','Department of State']),
-  yearMin: null, yearMax: null,
-  yearWindow: null,
-  showOffEarth: true,
-  selectedRecordId: null,
-  resizeBound: false,
+  mode: 'pins',
+  query: '',
+  release: 0,
+  agency: '',
+  from: '',
+  to: '',
+  selected: null,
   mount() {
     const main = document.getElementById('appMain');
     main.classList.add('bg-flush');
@@ -677,374 +662,222 @@ Views.uearth = {
       <div class="uearth">
         <div class="map-wrap">
           <div class="uearth-globe" id="uearthGlobe"></div>
-          <div class="uearth-overlay" id="uearthOverlay">
+          <div class="uearth-overlay">
             <div class="uearth-overlay-row">
-              <div class="uearth-pill"><span class="uearth-spark">🌎</span><strong>UEarth</strong> · UAP Atlas</div>
+              <div class="uearth-pill"><i class="material-icons">public</i><strong>UEarth</strong> · UAP Atlas</div>
               <div class="uearth-mode" id="uearthMode">
-                <button class="${this.layerMode==='pins'?'active':''}" data-m="pins"><i class="material-icons">scatter_plot</i> Pins</button>
-                <button class="${this.layerMode==='density'?'active':''}" data-m="density"><i class="material-icons">whatshot</i> Density</button>
-                <button data-m="rotate" id="uearthRotateBtn" class="active" title="Auto-rotate"><i class="material-icons">rotate_right</i></button>
-                <button data-m="reset" id="uearthResetBtn" title="Reset view"><i class="material-icons">restart_alt</i></button>
+                <button data-mode="pins">Pins</button>
+                <button data-mode="density">Density</button>
+                <button id="uearthRotate" aria-label="Auto-rotate" aria-pressed="false"><i class="material-icons">rotate_right</i></button>
+                <button id="uearthHome" aria-label="Reset map view"><i class="material-icons">restart_alt</i></button>
               </div>
             </div>
-            <div class="uearth-overlay-row uearth-agencies" id="uearthAgencies"></div>
-            <div class="uearth-overlay-row uearth-time" id="uearthTime"></div>
           </div>
-          <div class="uearth-globe-empty" id="uearthGlobeEmpty" hidden>
-            <i class="material-icons">public</i>
-            <div>Loading 3D globe…</div>
+          <div class="uearth-globe-empty" id="uearthFallback" hidden>
+            <i class="material-icons">public</i><p>3D globe unavailable. You can still explore the records below or in the sidebar.</p>
           </div>
         </div>
         <aside class="uearth-side">
           <header class="uearth-side-head">
-            <h3>UEarth · UAP Atlas</h3>
-            <p>A 3D globe of every declassified UAP report. Drag to spin, scroll to zoom, click a pin to open its record, drag the timeline to filter by year, or switch to <em>Density</em> for a global heat-bin view. Off-Earth incidents (Apollo, Gemini, Skylab, orbital) fly out of the globe as animated arcs.</p>
+            <h3>Explore the archive</h3>
+            <p>Pins show approximate reported locations. Density counts archive records, and several records can describe the same incident.</p>
           </header>
-          <div class="uearth-stats" id="uearthStats"></div>
-          <div class="uearth-section">
-            <h4>Top locations</h4>
-            <ul class="uearth-list" id="uearthList"></ul>
-          </div>
-          <div class="uearth-section" id="uearthOffWrap" hidden>
-            <h4>Off-Earth incidents <span id="uearthOffCount" class="badge"></span></h4>
-            <ul class="uearth-list uearth-off" id="uearthOff"></ul>
-          </div>
-          <div class="uearth-credit">3D globe rendered with <a href="https://globe.gl/" target="_blank" rel="noreferrer">globe.gl</a> · Atlas data inspired by <a href="https://github.com/AlexZhangji/ufo-pursue-open-atlas" target="_blank" rel="noreferrer">PURSUE Open Atlas</a> (CC0). Off-Earth arcs use the launch site closest to each mission.</div>
+          <form class="uearth-filters" id="uearthFilters">
+            <input type="search" name="query" placeholder="Search places or records" aria-label="Search places or records">
+            <div class="uearth-filter-row">
+              <label>Release<select name="release"><option value="0">All releases</option>${Array.from({length:8}, (_, i) => `<option value="${i+1}">Release ${String(i+1).padStart(2,'0')}</option>`).join('')}</select></label>
+              <label>Agency<select name="agency"><option value="">All agencies</option>${[...new Set(state.enriched.map(r => r.agency))].sort().map(a => `<option value="${escapeHtml(a)}">${escapeHtml(AGENCIES[a]?.short || a)}</option>`).join('')}</select></label>
+            </div>
+            <div class="uearth-filter-row">
+              <label>From year<input type="number" name="from" placeholder="Any" min="1900" max="2100"></label>
+              <label>To year<input type="number" name="to" placeholder="Any" min="1900" max="2100"></label>
+              <button type="button" class="uearth-link" id="uearthClear">Clear filters</button>
+            </div>
+          </form>
+          <div class="uearth-stats" id="uearthStats" aria-live="polite"></div>
+          <div id="uearthResults"></div>
+          <div class="uearth-credit">Globe rendered with <a href="https://globe.gl/" target="_blank" rel="noreferrer">globe.gl</a> · Release 01 map data includes the <a href="https://github.com/AlexZhangji/ufo-pursue-open-atlas" target="_blank" rel="noreferrer">PURSUE Open Atlas</a>.</div>
         </aside>
       </div>`;
-    setTimeout(() => this.init(), 30);
-  },
-  init() {
-    const ys = state.enriched.map(r => r.year || (r.incident_date && /\b(19|20)\d{2}\b/.exec(r.incident_date) ? Number(/\b((?:19|20)\d{2})\b/.exec(r.incident_date)[1]) : null)).filter(y => y);
-    this.yearMin = Math.min(...ys);
-    this.yearMax = Math.max(...ys);
-    if (!this.yearWindow) this.yearWindow = [this.yearMin, this.yearMax];
-
-    const host = document.getElementById('uearthGlobe');
-    if (!host) return;
-    if (typeof Globe !== 'function') {
-      document.getElementById('uearthGlobeEmpty').hidden = false;
-      document.getElementById('uearthGlobeEmpty').innerHTML = '<i class="material-icons">cloud_off</i><div>3D globe library failed to load — check network.</div>';
-      return;
-    }
-    if (this.globe) {
-      try { this.globe._destructor && this.globe._destructor(); } catch (e) {}
-      host.innerHTML = '';
-      this.globe = null;
-    }
-    const globe = Globe()(host)
-      .globeImageUrl('https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-night.jpg')
-      .bumpImageUrl('https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-topology.png')
-      .backgroundImageUrl('https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/night-sky.png')
-      .atmosphereColor('#3b82f6')
-      .atmosphereAltitude(0.18)
-      .showGlobe(true)
-      .showAtmosphere(true);
-    globe.width(host.clientWidth);
-    globe.height(host.clientHeight);
-    globe.pointOfView({ lat: 22, lng: 12, altitude: 2.6 }, 0);
-    const controls = globe.controls();
-    controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.45;
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.08;
-    this.globe = globe;
-
-    if (!this.resizeBound) {
-      this._onResize = () => {
-        if (!this.globe) return;
-        const h = document.getElementById('uearthGlobe');
-        if (!h) return;
-        this.globe.width(h.clientWidth); this.globe.height(h.clientHeight);
-      };
-      window.addEventListener('resize', this._onResize);
-      this.resizeBound = true;
-    }
-    setTimeout(() => this._onResize && this._onResize(), 60);
-
-    this.renderAgencyChips();
-    this.renderTimeSlider();
-    this.renderModeToggle();
-    this.renderLayer();
-    this.renderSidebar();
-  },
-  effectiveCoords(r) {
-    if (r.atlas_lat != null && r.atlas_lng != null) return [r.atlas_lat, r.atlas_lng];
-    if (r.lat_base != null && r.lng_base != null) return [r.lat_base, r.lng_base];
-    if (r.coords) return r.coords;
-    return null;
-  },
-  yearOf(r) {
-    if (r.year) return r.year;
-    const m = /\b((?:19|20)\d{2})\b/.exec(r.incident_date || '');
-    return m ? Number(m[1]) : null;
-  },
-  agencyColorOf(r) {
-    if (r.agency_color) return r.agency_color;
-    return (AGENCIES[r.agency] || {}).color || '#9aa0a6';
-  },
-  filtered() {
-    return state.enriched.filter(r => {
-      if (!this.agencyFilter.has(r.agency)) return false;
-      const y = this.yearOf(r);
-      if (y && (y < this.yearWindow[0] || y > this.yearWindow[1])) return false;
-      return true;
+    this.host = document.getElementById('uearthGlobe');
+    const form = document.getElementById('uearthFilters');
+    const fields = ['query', 'release', 'agency', 'from', 'to'];
+    fields.forEach(key => { form.elements[key].value = this[key]; });
+    form.addEventListener('submit', event => event.preventDefault());
+    form.addEventListener('input', () => {
+      fields.forEach(key => { this[key] = form.elements[key].value; });
+      this.selected = null;
+      this.render();
     });
-  },
-  renderModeToggle() {
-    const host = document.getElementById('uearthMode');
-    host.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
-      const m = b.dataset.m;
-      if (m === 'rotate') {
-        if (!this.globe) return;
-        const c = this.globe.controls();
-        c.autoRotate = !c.autoRotate;
-        b.classList.toggle('active', c.autoRotate);
-        return;
-      }
-      if (m === 'reset') {
-        if (!this.globe) return;
-        this.globe.pointOfView({ lat: 22, lng: 12, altitude: 2.6 }, 900);
-        this.globe.controls().autoRotate = true;
-        document.getElementById('uearthRotateBtn').classList.add('active');
-        return;
-      }
-      this.layerMode = m;
-      host.querySelectorAll('button[data-m="pins"], button[data-m="density"]').forEach(x => x.classList.toggle('active', x.dataset.m===this.layerMode));
-      this.renderLayer();
-    }));
-  },
-  renderAgencyChips() {
-    const host = document.getElementById('uearthAgencies');
-    const order = ['Department of War','FBI','NASA','Department of State'];
-    const counts = {};
-    state.enriched.forEach(r => { counts[r.agency] = (counts[r.agency] || 0) + 1; });
-    host.innerHTML = order.map(a => {
-      const c = AGENCIES[a]?.color || '#999';
-      const on = this.agencyFilter.has(a);
-      return `<button class="uearth-chip ${on?'on':''}" data-a="${escapeHtml(a)}" style="--c:${c}"><span class="dot"></span>${AGENCIES[a]?.short||a} <em>${counts[a]||0}</em></button>`;
-    }).join('');
-    host.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
-      const a = b.dataset.a;
-      if (this.agencyFilter.has(a)) this.agencyFilter.delete(a); else this.agencyFilter.add(a);
-      b.classList.toggle('on', this.agencyFilter.has(a));
-      this.renderLayer(); this.renderSidebar();
-    }));
-  },
-  renderTimeSlider() {
-    const host = document.getElementById('uearthTime');
-    host.innerHTML = `
-      <div class="uearth-time-head">
-        <span>Year window</span>
-        <span class="uearth-time-range" id="uearthTimeRange">${this.yearWindow[0]}–${this.yearWindow[1]}</span>
-        <button class="uearth-link" id="uearthTimeReset">reset</button>
-      </div>
-      <div class="uearth-histogram" id="uearthHisto"></div>
-      <div class="uearth-time-axis">
-        <span>${this.yearMin}</span><span>${Math.round((this.yearMin+this.yearMax)/2)}</span><span>${this.yearMax}</span>
-      </div>`;
-    // histogram
-    const buckets = {};
-    state.enriched.forEach(r => { const y = this.yearOf(r); if (y) buckets[y] = (buckets[y]||0)+1; });
-    const max = Math.max(1, ...Object.values(buckets));
-    const hist = document.getElementById('uearthHisto');
-    const bars = [];
-    for (let y = this.yearMin; y <= this.yearMax; y++) {
-      const v = buckets[y] || 0;
-      const inside = (y >= this.yearWindow[0] && y <= this.yearWindow[1]);
-      bars.push(`<div class="uearth-bar ${inside?'on':''}" data-y="${y}" style="--h:${(v/max)*100}%" title="${y}: ${v} record${v===1?'':'s'}"></div>`);
-    }
-    hist.innerHTML = bars.join('');
-    // drag-to-window
-    let dragStart = null;
-    const yearAt = (e) => {
-      const rect = hist.getBoundingClientRect();
-      const x = (e.touches?e.touches[0].clientX:e.clientX) - rect.left;
-      const frac = Math.max(0, Math.min(1, x / rect.width));
-      const span = (this.yearMax - this.yearMin);
-      return Math.round(this.yearMin + frac * span);
+    document.getElementById('uearthClear').onclick = () => {
+      form.reset();
+      form.dispatchEvent(new Event('input'));
     };
-    const onMove = (e) => {
-      if (dragStart == null) return;
-      const y = yearAt(e);
-      this.yearWindow = [Math.min(dragStart, y), Math.max(dragStart, y)];
-      document.getElementById('uearthTimeRange').textContent = `${this.yearWindow[0]}–${this.yearWindow[1]}`;
-      hist.querySelectorAll('.uearth-bar').forEach(b => {
-        const yy = Number(b.dataset.y);
-        b.classList.toggle('on', yy >= this.yearWindow[0] && yy <= this.yearWindow[1]);
+    document.querySelectorAll('#uearthMode [data-mode]').forEach(button => {
+      button.onclick = () => { this.mode = button.dataset.mode; this.render(); };
+    });
+    const rotate = document.getElementById('uearthRotate');
+    rotate.onclick = () => this.setRotation(!this.globe?.controls().autoRotate);
+    document.getElementById('uearthHome').onclick = () => {
+      this.selected = null;
+      this.globe?.pointOfView({ lat: 22, lng: 12, altitude: 2.6 }, this.motion());
+      this.setRotation(false);
+      this.render();
+    };
+    this.initGlobe();
+    this.render();
+  },
+  unmount() {
+    this.resizeObserver?.disconnect();
+    this.globe?._destructor?.();
+    this.globe = null;
+  },
+  motion() {
+    return matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 650;
+  },
+  setRotation(active) {
+    if (!this.globe) return;
+    this.globe.controls().autoRotate = active;
+    const button = document.getElementById('uearthRotate');
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', active);
+  },
+  initGlobe() {
+    const host = this.host;
+    try {
+      this.globe = Globe()(host)
+        .globeImageUrl('https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-night.jpg')
+        .backgroundImageUrl('https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/night-sky.png')
+        .atmosphereColor('#528cff')
+        .atmosphereAltitude(0.17)
+        .pointOfView({ lat: 22, lng: 12, altitude: 2.6 }, 0);
+      this.globe.controls().autoRotateSpeed = 0.45;
+      this.resizeObserver = new ResizeObserver(() => {
+        this.globe?.width(host.clientWidth).height(host.clientHeight);
       });
-    };
-    const onUp = () => {
-      if (dragStart == null) return;
-      dragStart = null;
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-      window.removeEventListener('touchmove', onMove);
-      window.removeEventListener('touchend', onUp);
-      this.renderLayer(); this.renderSidebar();
-    };
-    hist.addEventListener('mousedown', (e) => {
-      dragStart = yearAt(e);
-      this.yearWindow = [dragStart, dragStart];
-      window.addEventListener('mousemove', onMove);
-      window.addEventListener('mouseup', onUp);
-    });
-    hist.addEventListener('touchstart', (e) => {
-      dragStart = yearAt(e);
-      this.yearWindow = [dragStart, dragStart];
-      window.addEventListener('touchmove', onMove, {passive:true});
-      window.addEventListener('touchend', onUp);
-    });
-    document.getElementById('uearthTimeReset').addEventListener('click', () => {
-      this.yearWindow = [this.yearMin, this.yearMax];
-      this.renderTimeSlider();
-      this.renderLayer(); this.renderSidebar();
-    });
+      this.resizeObserver.observe(host);
+    } catch {
+      this.unmount();
+      host.replaceChildren();
+      document.getElementById('uearthMode').hidden = true;
+      document.getElementById('uearthFallback').hidden = false;
+    }
   },
-  renderLayer() {
-    const g = this.globe;
-    if (!g) return;
-    const items = this.filtered();
-    const located = items.filter(r => this.effectiveCoords(r));
-    const off = items.filter(r => !this.effectiveCoords(r));
+  isOffEarth(r) {
+    return /^(?:low[- ]earth orbit|moon|cislunar space)$/i.test((r.incident_location || '').trim());
+  },
+  coords(r) {
+    if (this.isOffEarth(r)) return null;
+    return [[r.atlas_lat, r.atlas_lng], r.coords, [r.lat_base, r.lng_base]].find(pair =>
+      pair && Number.isFinite(pair[0]) && Number.isFinite(pair[1]) &&
+      Math.abs(pair[0]) <= 90 && Math.abs(pair[1]) <= 180);
+  },
+  render() {
+    const q = this.query.trim().toLowerCase();
+    const items = state.enriched.filter(r => {
+      const year = r.date_parsed?.year || r.year;
+      return (!Number(this.release) || (r.release || 1) === Number(this.release)) &&
+        (!this.agency || r.agency === this.agency) &&
+        (!this.from || year >= Number(this.from)) &&
+        (!this.to || year <= Number(this.to)) &&
+        (!q || [r.title, fmtTitle(r.title), r.incident_location, r.id].join(' ').toLowerCase().includes(q));
+    });
 
-    if (this.layerMode === 'density') {
-      const pts = located.map(r => { const [lat,lng] = this.effectiveCoords(r); return { lat, lng, w: 1, record: r }; });
-      const colorScale = (typeof d3 !== 'undefined' && d3.interpolateInferno) ? d3.interpolateInferno : (t => `rgba(${Math.round(t*255)},${Math.round(t*120)},${Math.round((1-t)*200)},0.9)`);
-      g.pointsData([])
-        .arcsData([])
-        .ringsData([])
-        .htmlElementsData([])
-        .hexBinPointsData(pts)
-        .hexBinPointLat('lat').hexBinPointLng('lng').hexBinPointWeight('w')
-        .hexBinResolution(3)
-        .hexAltitude(d => Math.min(0.5, 0.04 + d.sumWeight * 0.025))
-        .hexTopColor(d => colorScale(Math.min(1, d.sumWeight / 6)))
-        .hexSideColor(d => colorScale(Math.min(1, d.sumWeight / 6)))
-        .hexBinMerge(false)
-        .hexLabel(d => `<div class="uearth-tip"><strong>${d.points.length} record${d.points.length===1?'':'s'}</strong><br/><em>${d.points.slice(0,4).map(p => escapeHtml(fmtTitle(p.record.title))).join('<br/>')}</em>${d.points.length>4?`<br/>+${d.points.length-4} more`:''}</div>`);
+    const locations = new Map();
+    const unmapped = [];
+    const offEarth = [];
+    for (const record of items) {
+      const coords = this.coords(record);
+      if (!coords) {
+        (this.isOffEarth(record) ? offEarth : unmapped).push(record);
+        continue;
+      }
+      const [lat, lng] = coords;
+      const key = `${lat.toFixed(2)},${lng.toFixed(2)}`;
+      if (!locations.has(key)) locations.set(key, {key, lat, lng, records: []});
+      locations.get(key).records.push(record);
+    }
+    const groups = [...locations.values()].sort((a, b) => b.records.length - a.records.length);
+    const selection = this.selected;
+    const records = selection ? selection.records : null;
+    const resultHost = document.getElementById('uearthResults');
+    document.getElementById('uearthStats').innerHTML = `
+      <div><strong>${items.length}</strong> matching records</div>
+      <div><strong>${items.length - unmapped.length - offEarth.length}</strong> mapped records</div>
+      <div><strong>${groups.length}</strong> map locations</div>
+      <div><strong>${unmapped.length + offEarth.length}</strong> outside the map</div>`;
+
+    if (records) {
+      resultHost.innerHTML = `<button class="uearth-link" id="uearthBack">← All matching locations</button>
+        <h4>${escapeHtml(selection.label)}</h4>${this.recordList(records)}`;
+      document.getElementById('uearthBack').onclick = () => {
+        this.selected = null;
+        this.render();
+      };
+    } else {
+      resultHost.innerHTML = `<h4>Locations</h4><ul class="uearth-results">${groups.map((g, i) => `
+        <li><button data-location="${i}"><span>${escapeHtml(this.locationLabel(g))}</span><b>${g.records.length}</b></button></li>`).join('')}</ul>
+        ${groups.length ? '' : '<p>No mapped records match these filters.</p>'}
+        ${offEarth.length ? `<details><summary>Off-Earth records (${offEarth.length})</summary>${this.recordList(offEarth)}</details>` : ''}
+        ${unmapped.length ? `<details ${groups.length ? '' : 'open'}><summary>Records without map coordinates (${unmapped.length})</summary>${this.recordList(unmapped)}</details>` : ''}`;
+      resultHost.querySelectorAll('[data-location]').forEach(button => {
+        button.onclick = () => this.focus(groups[Number(button.dataset.location)]);
+      });
+    }
+
+    resultHost.querySelectorAll('[data-record]').forEach(button => {
+      button.onclick = () => openRecord(state.byId[button.dataset.record]._idx);
+    });
+    document.querySelectorAll('#uearthMode [data-mode]').forEach(button => {
+      const active = button.dataset.mode === this.mode;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', active);
+    });
+    this.renderMap(groups);
+  },
+  locationLabel(group) {
+    const labels = [...new Set(group.records.map(r => r.incident_location).filter(loc => loc && loc !== 'N/A'))];
+    return labels.join(' / ') || `${group.lat.toFixed(2)}, ${group.lng.toFixed(2)}`;
+  },
+  recordList(records) {
+    return `<ul class="uearth-results">${records.map(r => `<li><button data-record="${r.id}">
+      <span>${escapeHtml(fmtTitle(r.title))}<small>${escapeHtml(r.agency)} · ${r.type} · Release ${String(r.release || 1).padStart(2,'0')}</small></span>
+      <i class="material-icons">chevron_right</i></button></li>`).join('')}</ul>`;
+  },
+  focus(group) {
+    this.selected = { label: this.locationLabel(group), records: group.records };
+    this.setRotation(false);
+    this.globe?.pointOfView({ lat: group.lat, lng: group.lng, altitude: 1.15 }, this.motion());
+    this.render();
+    document.getElementById('uearthBack').focus({preventScroll:true});
+  },
+  renderMap(groups) {
+    const globe = this.globe;
+    if (!globe) return;
+    if (this.mode === 'density') {
+      globe.htmlElementsData([])
+        .hexBinPointLat('lat').hexBinPointLng('lng').hexBinPointWeight(g => g.records.length)
+        .hexBinResolution(3).hexBinMerge(false)
+        .hexAltitude(d => Math.min(.36, .035 + .02 * d.sumWeight))
+        .hexTopColor(d => d.sumWeight > 5 ? '#ffbb69' : '#6aaaff')
+        .hexSideColor(() => '#3e68aa')
+        .hexLabel(d => `${d.sumWeight} archive records`)
+        .onHexClick(d => this.focus({ ...d.points[0], records: d.points.flatMap(g => g.records) }))
+        .hexBinPointsData(groups);
       return;
     }
-
-    // pins mode: surface markers + animated arcs for off-earth
-    const pinData = located.map(r => {
-      const [lat,lng] = this.effectiveCoords(r);
-      return { lat, lng, color: this.agencyColorOf(r), record: r };
-    });
-    const arcData = off.map(r => {
-      const ls = pickLaunchSite(r);
-      // jitter end point so arcs spread, not overlap
-      const dy = (Math.sin((r.id||'').length * 1.3) * 8) || 6;
-      const dx = (Math.cos((r.id||'').length * 1.7) * 18) || -12;
-      const c = this.agencyColorOf(r);
-      return {
-        startLat: ls.lat, startLng: ls.lng,
-        endLat: ls.lat + dy, endLng: ls.lng + dx,
-        color: [c, '#ffffff'], record: r, launch: ls.label
-      };
-    });
-
-    const root = document.getElementById('uearthGlobe');
-    const self = this;
-    g.hexBinPointsData([])
-      .htmlElementsData(pinData)
-      .htmlElement(d => {
-        const el = document.createElement('div');
-        el.className = 'uearth-globe-pin';
-        el.style.setProperty('--c', d.color);
-        el.innerHTML = '<span class="uearth-globe-pin-dot"></span><span class="uearth-globe-pin-pulse"></span>';
-        el.title = fmtTitle(d.record.title);
-        el.style.pointerEvents = 'auto';
-        el.style.cursor = 'pointer';
-        el.addEventListener('mouseenter', () => self._tip(self.popupHtml(d.record), root));
-        el.addEventListener('mouseleave', () => self._tip(null, root));
-        el.addEventListener('click', (e) => {
-          e.stopPropagation();
-          if (state.byId[d.record.id]) openRecord(state.byId[d.record.id]._idx);
-        });
-        return el;
+    globe.hexBinPointsData([])
+      .htmlElement(group => {
+        const button = document.createElement('button');
+        button.className = 'uearth-marker';
+        const count = group.records.length;
+        button.textContent = count > 1 ? count : '';
+        button.title = `${this.locationLabel(group)} · ${count} record${count === 1 ? '' : 's'}`;
+        button.setAttribute('aria-label', button.title);
+        button.onclick = event => { event.stopPropagation(); this.focus(group); };
+        return button;
       })
-      .pointsData([])
-      .arcsData(arcData)
-      .arcStartLat('startLat').arcStartLng('startLng')
-      .arcEndLat('endLat').arcEndLng('endLng')
-      .arcColor('color')
-      .arcAltitude(0.45)
-      .arcStroke(0.55)
-      .arcDashLength(0.45).arcDashGap(0.18).arcDashAnimateTime(2200)
-      .arcLabel(d => `<div class="uearth-tip"><span class="uearth-tip-tag">Off-Earth · launched from ${escapeHtml(d.launch)}</span><strong>${escapeHtml(fmtTitle(d.record.title))}</strong><br/>${escapeHtml((d.record.description||'').slice(0,160))}${(d.record.description||'').length>160?'…':''}</div>`)
-      .onArcClick(d => { if (d.record && state.byId[d.record.id]) openRecord(state.byId[d.record.id]._idx); });
-  },
-  _tip(html, host) {
-    let tip = host.querySelector('.uearth-tip-floating');
-    if (!html) { if (tip) tip.remove(); return; }
-    if (!tip) {
-      tip = document.createElement('div');
-      tip.className = 'uearth-tip-floating';
-      host.appendChild(tip);
-    }
-    tip.innerHTML = html;
-  },
-  popupHtml(r) {
-    const ag = AGENCIES[r.agency] || {};
-    const y = this.yearOf(r);
-    const date = (r.date_label || r.incident_date || (y ? `~${y}` : 'Date unknown'));
-    return `<div class="uearth-card">
-      <div class="uearth-card-head"><span class="uearth-card-dot" style="background:${this.agencyColorOf(r)}"></span><strong>${escapeHtml(ag.short || r.agency)}</strong> · ${escapeHtml(date)}</div>
-      <div class="uearth-card-title">${escapeHtml(fmtTitle(r.title))}</div>
-      ${r.incident_location && r.incident_location!=='N/A' ? `<div class="uearth-card-loc"><i class="material-icons">place</i>${escapeHtml(r.incident_location)}</div>`:''}
-      <p>${escapeHtml((r.description || '').slice(0, 200))}${(r.description||'').length>200?'…':''}</p>
-      <span class="uearth-open">Click to open record →</span>
-    </div>`;
-  },
-  renderSidebar() {
-    const items = this.filtered();
-    // grouped by location
-    const grouped = {};
-    items.forEach(r => {
-      const c = this.effectiveCoords(r);
-      if (!c) return;
-      const loc = r.incident_location && r.incident_location!=='N/A' ? r.incident_location : (r.cluster_key || 'Unknown');
-      const key = loc;
-      (grouped[key] = grouped[key] || { loc, lat:c[0], lng:c[1], records:[], colors:new Set() }).records.push(r);
-      grouped[key].colors.add(this.agencyColorOf(r));
-    });
-    const sorted = Object.values(grouped).sort((a,b) => b.records.length - a.records.length);
-    const list = document.getElementById('uearthList');
-    list.innerHTML = sorted.slice(0, 40).map(g => `
-      <li data-lat="${g.lat}" data-lng="${g.lng}">
-        <span class="uearth-loc">${escapeHtml(g.loc)}</span>
-        <span class="uearth-dots">${[...g.colors].map(c => `<i style="background:${c}"></i>`).join('')}</span>
-        <span class="uearth-cnt">${g.records.length}</span>
-      </li>`).join('') || '<li class="muted">No records in this filter.</li>';
-    list.querySelectorAll('li[data-lat]').forEach(li => li.addEventListener('click', () => {
-      const lat = Number(li.dataset.lat), lng = Number(li.dataset.lng);
-      if (this.globe) {
-        this.globe.controls().autoRotate = false;
-        const btn = document.getElementById('uearthRotateBtn'); if (btn) btn.classList.remove('active');
-        this.globe.pointOfView({ lat, lng, altitude: 1.6 }, 1200);
-      }
-    }));
-    // off-earth
-    const off = items.filter(r => !this.effectiveCoords(r));
-    const offWrap = document.getElementById('uearthOffWrap');
-    const offEl = document.getElementById('uearthOff');
-    if (off.length) {
-      offWrap.hidden = false;
-      document.getElementById('uearthOffCount').textContent = off.length;
-      offEl.innerHTML = off.map(r => `<li data-id="${r.id}"><span class="uearth-loc">${escapeHtml(fmtTitle(r.title))}</span><span class="uearth-cnt">${this.yearOf(r)||''}</span></li>`).join('');
-      offEl.querySelectorAll('li').forEach(li => li.addEventListener('click', () => { const r = state.byId[li.dataset.id]; if (r) openRecord(r._idx); }));
-    } else {
-      offWrap.hidden = true;
-    }
-    // stats
-    const stats = document.getElementById('uearthStats');
-    const total = items.length;
-    const located = total - off.length;
-    stats.innerHTML = `<div><strong>${total}</strong> record${total===1?'':'s'}</div>
-                       <div><strong>${located}</strong> located</div>
-                       <div><strong>${off.length}</strong> off-Earth</div>
-                       <div><strong>${this.yearWindow[0]}–${this.yearWindow[1]}</strong></div>`;
+      .htmlElementsData(groups);
   }
 };
 
