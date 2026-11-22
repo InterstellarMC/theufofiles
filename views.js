@@ -207,12 +207,7 @@ const Players = {
         video.play().catch(() => {});
       };
     });
-    overlay.querySelectorAll('[data-evidence]').forEach(button => {
-      button.onclick = () => {
-        this.close();
-        openRecord(state.byId[button.dataset.evidence]._idx);
-      };
-    });
+    bindEvidence(overlay, () => this.close());
     overlay.querySelector('#ytClose').focus();
     overlay.querySelector('#ytShowDesc')?.addEventListener('click', e => {
       const el = overlay.querySelector('.yt-desc');
@@ -242,7 +237,6 @@ const Players = {
           ? `${boundary}<button type="button" class="yt-timestamp" data-seek="${Number(minutes) * 60 + Number(seconds)}">${minutes}:${seconds}</button>`
           : match);
     const source = r.dvids_url || r.asset_url;
-    const evidence = this.evidenceFor(r);
     const tagsLine = ['#UAP', '#PURSUE', '#'+r.agency.replace(/\s+/g,''), r.incident_location ? '#'+r.incident_location.replace(/\s+/g,'') : ''].filter(Boolean).map(t=>`<span class="yt-tag">${escapeHtml(t)}</span>`).join('');
     const player = r.video_url
       ? `<video controls autoplay playsinline preload="metadata" poster="${escapeHtml(r.poster_url || '')}" src="${escapeHtml(r.video_url)}"></video>`
@@ -302,20 +296,12 @@ const Players = {
               ${source ? `<div class="yt-desc-link"><a href="${escapeHtml(source)}" target="_blank" rel="noreferrer">View official video record</a></div>` : ''}
               <button class="yt-show-more" id="ytShowDesc">Show more</button>
             </div>
-            ${evidence.length ? `<section class="yt-evidence"><h2>Paired evidence</h2>${evidence.map(record =>
-              `<button data-evidence="${record.id}" class="yt-action-btn">${escapeHtml(fmtTitle(record.title))}</button>`).join('')}</section>` : ''}
+            ${pairedEvidence(r)}
             <div class="yt-comments-section" id="ytComments"></div>
           </div>
           <aside class="yt-sidebar" id="ytSidebar"></aside>
         </div>
       </div>`;
-  },
-  evidenceFor(video) {
-    const code = title => (title || '').split(',')[0].trim().toUpperCase();
-    const pairs = (video.pdf_pairing || '').toUpperCase().split(/[,;\s]+/).filter(Boolean);
-    return state.enriched.filter(record => record.type !== 'VID' &&
-      (pairs.includes(code(record.title)) ||
-        (record.video_pairing || '').toUpperCase().split(/[,;\s]+/).includes(code(video.title))));
   },
   bindRelated(overlay, r) {
     const others = state.enriched.filter(x => x.type === 'VID' && x.id !== r.id);
@@ -733,6 +719,12 @@ Views.uphotos = {
       <strong>${escapeHtml(p.title)}</strong>
       <div style="margin-top:4px;opacity:.85">${escapeHtml(p.sub)}</div>
       <div style="margin-top:8px"><span style="font-size:11px;opacity:.6">${i+1} / ${this.lightboxList.length} · ← / → to navigate · Esc to close</span> ${recBtn}${linkBtn}</div>`;
+    const caption = document.getElementById('lightboxCaption');
+    const evidence = pairedEvidence(p.r);
+    if (evidence) {
+      caption.insertAdjacentHTML('beforeend', `<details class="lightbox-evidence"><summary>Paired evidence</summary>${evidence}</details>`);
+      bindEvidence(caption, () => this.closeLightbox());
+    }
     lb.hidden = false;
     document.getElementById('lightboxClose').focus({preventScroll:true});
     document.getElementById('lbOpenRec')?.addEventListener('click', () => {

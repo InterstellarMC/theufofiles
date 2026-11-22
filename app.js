@@ -94,6 +94,7 @@ async function init() {
       archiveJson('releases-02-08.json'),
     ]);
     state.enriched = enriched.concat(later.records);
+    state.evidence = indexEvidence(state.enriched);
     state.witnesses = witnesses;
     state.pdfImages = images;
     if (seed) Comments.init(seed);
@@ -385,6 +386,69 @@ function closeWitness() {
   document.getElementById('witnessModal').hidden = true;
 }
 
+function evidenceCode(value) {
+  return value.trim().toUpperCase()
+    .replace(/^PR-?(\d+[A-Z]?)$/, 'DOW-UAP-PR$1')
+    .replace(/-PR-?0*(\d+[A-Z]?)$/, '-PR$1')
+    .replace(/-D-?0*(\d+[A-Z]?)$/, '-D$1');
+}
+
+function indexEvidence(records) {
+  const byCode = new Map();
+  const links = new Map();
+  const code = record => evidenceCode(record.title.split(',')[0]);
+  const pairs = value => (value || '').split(/[,;\n]+/).map(evidenceCode).filter(Boolean);
+  const sameRelease = (a, b) => (a.release || 1) === (b.release || 1);
+  for (const record of records) {
+    const key = code(record);
+    if (!byCode.has(key)) byCode.set(key, []);
+    byCode.get(key).push(record);
+    links.set(record.id, new Set());
+  }
+  for (const record of records) {
+    for (const [type, values, reverse] of [
+      ['PDF', record.pdf_pairing, 'video_pairing'],
+      ['VID', record.video_pairing, 'pdf_pairing']
+    ]) {
+      for (const key of pairs(values)) {
+        const candidates = (byCode.get(key) || []).filter(peer =>
+          peer.id !== record.id && peer.type === type && sameRelease(record, peer));
+        const match = candidates.length === 1 ? candidates[0] :
+          candidates.find(peer => pairs(peer[reverse]).includes(code(record)));
+        if (!match) continue;
+        links.get(record.id).add(match);
+        links.get(match.id).add(record);
+      }
+    }
+  }
+  return links;
+}
+
+function pairedEvidence(record) {
+  const matches = record && state.evidence.get(record.id);
+  if (!matches?.size) return '';
+  return `<section class="paired-evidence" aria-label="Paired evidence">
+    <h4>Paired evidence</h4>
+    <ul>${[...matches].map(peer => {
+      const kind = peer.type === 'PDF' ? 'Document' : peer.type === 'VID' ? 'Video' :
+        /digital rendering/i.test(peer.title) ? 'Illustration' : 'Image';
+      return `<li><button type="button" data-evidence="${peer.id}">
+        <span class="evidence-kind">${kind}</span><span>${escapeHtml(fmtTitle(peer.title))}</span>
+      </button></li>`;
+    }).join('')}</ul>
+  </section>`;
+}
+
+function bindEvidence(host, beforeOpen = () => {}) {
+  host.querySelectorAll('[data-evidence]').forEach(button => {
+    button.onclick = () => {
+      const peer = state.byId[button.dataset.evidence];
+      beforeOpen();
+      openRecord(peer._idx);
+    };
+  });
+}
+
 /* ----------------------- Record modal ----------------------- */
 function openRecord(idx) {
   const r = state.enriched[idx];
@@ -455,6 +519,9 @@ function renderModal(r) {
 
   document.getElementById('modalDescription').textContent = r.description || (r.video_title ? r.video_title + '.' : '');
   document.getElementById('modalAttachment').innerHTML = renderAttachment(r);
+  const evidence = document.getElementById('modalEvidence');
+  evidence.innerHTML = pairedEvidence(r);
+  bindEvidence(evidence);
 
   // witnesses
   const wHtml = (r.witnesses || []).map(w => `
@@ -523,9 +590,12 @@ function renderAttachment(r) {
   }
   if (r.type === 'IMG') {
     const url = r.asset_url;
-    return head('img', fileNameFromUrl(url), `Photograph · war.gov`, url) +
+    const kind = /digital rendering/i.test(r.title) ? 'FBI illustration' : 'Photograph';
+    const preview = r.thumbnail_local || url;
+    return head('img', fileNameFromUrl(url), kind + ' / war.gov', url) +
       `<div class="attachment-body image-attachment">
-        <img src="${escapeHtml(url)}" alt="${escapeHtml(r.title)}" />
+        <img src="${escapeHtml(preview)}" alt="${escapeHtml(r.title)}" />
+        ${r.preview_source ? `<p class="muted">Preview copy via <a href="${escapeHtml(r.preview_source)}" target="_blank" rel="noreferrer">The UAP Reading Room</a>.</p>` : ''}
       </div>`;
   }
   return '';

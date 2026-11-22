@@ -657,3 +657,17 @@ button.doc-card:focus-visible,button.photo-card:focus-visible{outline:2px solid 
 .photo-card .photo-placeholder{position:absolute;inset:0;display:grid;place-items:center;font-size:34px;color:#a4aec0}
 .photo-card img{position:relative}
 .lightbox-stage>p{color:#fff;padding:20px;text-align:center}
+
+.paired-evidence{margin:14px 0;padding:12px;border:1px solid var(--line);border-radius:10px}
+.paired-evidence h4{margin:0 0 6px;font-size:14px}
+.paired-evidence ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.paired-evidence button{display:flex;gap:8px;align-items:baseline;width:100%;text-align:left;padding:7px 8px;border:0;border-radius:6px;color:inherit;background:var(--surface-2);font:inherit;cursor:pointer}
+.paired-evidence button:hover,.paired-evidence button:focus-visible{outline:2px solid #8ab4f8;outline-offset:1px}
+.evidence-kind{color:#315eac;font-size:11px;flex-shrink:0}
+.yt-modal .paired-evidence,.lightbox .paired-evidence{border-color:#434343}
+.yt-modal .paired-evidence button,.lightbox .paired-evidence button{background:#252525}
+.yt-modal .evidence-kind,.lightbox .evidence-kind{color:#a9ccff}
+.lightbox-evidence{margin-top:8px}
+.lightbox-evidence summary{cursor:pointer;color:#a9ccff}
+.lightbox-evidence .paired-evidence{max-height:22vh;overflow:auto}
+.lightbox-evidence .paired-evidence h4{display:none}
