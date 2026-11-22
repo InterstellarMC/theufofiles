@@ -493,7 +493,7 @@ Views.udrive = {
     main.innerHTML = `
       <div class="udrive">
         <div class="udrive-head">
-          <div class="udrive-title">UDrive · Declassified UAP documents</div>
+          <div class="udrive-title"><span class="dock-glyph drive-glyph app-heading-glyph" aria-hidden="true"></span><span>UDrive · Declassified UAP documents</span></div>
           <div style="margin-left:auto;color:#5f6368;font-size:13px">${state.enriched.filter(r=>r.type==='PDF').length} files</div>
         </div>
         <div class="udrive-chips" id="udriveChips"></div>
@@ -569,7 +569,7 @@ Views.uphotos = {
     main.innerHTML = `
       <div class="uphotos">
         <div class="uphotos-head">
-          <div class="uphotos-title">UPhotos · UAP photographs</div>
+          <div class="uphotos-title"><span class="dock-glyph photos-glyph app-heading-glyph" aria-hidden="true"></span><span>UPhotos · UAP photographs</span></div>
           <div class="uphotos-tabs" id="uphotosSource">
             <button class="ut-btn ${this.source==='official'?'active':''}" data-s="official">Official photo releases (${state.enriched.filter(r=>r.type==='IMG').length})</button>
             <button class="ut-btn ${this.source==='documents'?'active':''}" data-s="documents">Embedded in documents (${docCount.toLocaleString()} from ${docPdfCount} files)</button>

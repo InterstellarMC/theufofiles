@@ -671,3 +671,7 @@ button.doc-card:focus-visible,button.photo-card:focus-visible{outline:2px solid 
 .lightbox-evidence summary{cursor:pointer;color:#a9ccff}
 .lightbox-evidence .paired-evidence{max-height:22vh;overflow:auto}
 .lightbox-evidence .paired-evidence h4{display:none}
+
+.udrive .udrive-title,.uphotos .uphotos-title{display:flex;align-items:center;gap:10px}
+.app-heading-glyph{width:32px;height:32px;flex:0 0 32px}
+.app-heading-glyph.drive-glyph::after{inset:6px}
